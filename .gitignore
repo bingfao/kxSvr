@@ -6,3 +6,4 @@ log/
 ./kxsvr_g
 ./pgdtest
 .vscode/settings.json
+devEnv.md
