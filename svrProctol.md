@@ -17,24 +17,80 @@ wx小程序内，查看dev的状态、事件等信息，由svrMgr提供一定时
 /usrLogin
 
 httpRequest
-  - userId
-  - uuidMac
+  - type
+    - 1 wx小程序
+    - 2 独立App
+  - usrCode   
+    - 对wx小程序  是wx登录返回的code , 系统后台数据库记录openid,uuid、phoneNum,这3个字段关联匹配，均可作为用户唯一标识
   - timestamp
   - crc
 
 HttpResponse采用json形式返回
+  成功时
   - userSessionId
   - devList
     - devId
     - devType
     - ownerFlag   所有权说明，1 拥有  2 家人共享  3 朋友临时分享
+  - errCode 0
+  失败时
   - errCode
+    - 0xff  对应未完成手机号关联的用户
+    - 10001 调用微信服务接口失败
   - errMsg
+  - openid  
+  - unionid
+
+
+## 获取用户手机号注册
+/usrRegister
+
+httpRequest
+  - type
+    - 1 wx小程序
+    - 2 独立App
+  - usrCode
+    - 对wx小程序  是wx登录返回的code,系统基于此查询用户的openid
+  - usrOpenid
+    - 仅对wx小程序，系统此时不需要再次查询用户openid
+  - usrUUid
+    - 可选，仅对wx小程序
+  - authCode   
+    - 对wx小程序  是wx小程序点击获取用户手机号返回的code , 系统基于此来查找该用户手机号等信息
+  - timestamp
+  - crc
+
+HttpResponse采用json形式返回
+  - userSessionId
+  - errCode
+    - 0xff  对应未完成手机号关联的用户
+  - errMsg
+
+## 绑定车辆
+/bindDevWithUsr
+
+
+## 解绑车辆
+/unbindDev
+
+## 共享车辆给家人
+/shareDevWithFamily
+
+## 取消车辆家人共享
+/unshareDevWithFamily
+
+## 临时分享车辆
+/tmpShareDevTo
+
+## 取消临时分享
+/cancelTmpShare
+
+
+
 
 ## 设备当前状态查询
 
 httpRequest
-  - userId
   - userSessionId
   - devId
   - timestamp
@@ -53,7 +109,6 @@ HttpResponse采用json形式返回
 ## 设备状态历史查询
 
 httpRequest
-  - userId
   - userSessionId
   - devId
   - timeStart
@@ -72,7 +127,6 @@ HttpResponse采用json形式返回
 ## 设备事件历史查询
 
 httpRequest
-  - userId
   - userSessionId
   - devId
   - timeStart

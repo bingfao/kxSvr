@@ -95,9 +95,9 @@ RespCode
 - MsgId  1002
 包体部分
 - DevType  设备类型 1Byte
-    - 1   bike
-    - 2   E-bike
-    - 3   E-Motor
+    - 1   国标电动自行车
+    - 2   E-Motor
+
     - 4   电动三轮
     - 6   电动四轮
 
@@ -110,9 +110,9 @@ RespCode
     - 1   目前对应的版本
 - lngPos   lng位置  double  8Byte
 - latPos   lat位置  double  8Byte
-- status   工作状态  4Byte
+- status   工作状态  6Byte
     - lockStuats    1Byte  bit0 电气锁  bit1 座桶锁 bit2 手套箱锁 bit3 头盔锁 bit4 电驱锁
-    - moveStatus    1Byte  移动状态，速度 整数 mm/s
+    - moveStatus    2Byte  移动状态，速度 整数 mm/s
     - lightStatus   1Byte  灯光状态
         - bit0~1   照明大灯  0x01 开启 0x00 关闭  0x11 故障
         - bit2~3   示廓灯    0x01 开启 0x00 关闭  0x11 故障
@@ -123,19 +123,26 @@ RespCode
         - bit1 脚撑传感器 
         - bit2 儿童座位传感器
         - bit4 车辆倾倒状态
-- mimiBatteryStatus  中控小电池状态
+    - reserved      1Byte
+- miniiBatteryStatus  中控小电池状态
     - socPercent    1Byte           u8   0~100
     - voltage       2Byte           u16  电压值*100
     - temp          2Byte           i16  温度值*100
-- batteryId         6Byte           动力电池编号
+- batteryExist      1Byte           
+    - 1 存在
+    - 0 不存在, 当动力电池不存在时，后续字段无效
+- batteryId         16Byte           动力电池编号 string
 - batteryStatus     动力电池状态
     - socPercent    1Byte           u8   0~100   
     - voltage       2Byte           u16  电压值*100
     - temp          2Byte           i16  温度值*100
-- series count  1Byte           u8   多少串
-- each_voltages      2s_count Byte   u16  每串电压值*100  
+- seriesCount       1Byte           u8   多少串
+- seriesData        4 * s_count Byte   每串的数据
+    - voltage       2Byte           u16  每串电压值*100  
+    - temp          2Byte           i16  每串温度值*100, 如无温度传感器，填0xFFFF  
+
 设备位置未发生明显变化（距离<1m）时，每5min上传一次设备状态信息
-当设备位置发生明显变化时，每2min上传一次设备状态信息
+当设备位置发生明显变化时，每1min(待实测评估)上传一次设备状态信息
 
 
 ## 授权开锁
@@ -143,13 +150,7 @@ RespCode
 - CryptFlag 1
 ### 包体部分 
 **注意：包体部分是AES之后的数据，设备端需解密后验证时间和SessionId后处理**
-- svrtime     localtime 
-    - year         2Byte
-    - month        1Byte
-    - day          1Byte
-    - hour         1Byte
-    - second       1Byte
-    - microsecond  2Byte
+- svrtime         8Byte timestamp  localtime 
 - devSessionId    4Byte
 - allowTime       2Byte  允许使用的时长， 以min计
 - lowestSocP      1Byte  允许使用到的最低电量  0~100
@@ -166,13 +167,7 @@ RespCode
 - CryptFlag 1
 ### 包体部分 
 **注意：包体部分是AES之后的数据，设备端需解密后验证时间和SessionId后处理**
-- svrtime     localtime 
-    - year         2Byte
-    - month        1Byte
-    - day          1Byte
-    - hour         1Byte
-    - second       1Byte
-    - microsecond  2Byte
+- svrtime         8Byte timestamp  localtime  
 - devSessionId    4Byte
 - KeyType         1Byte  解锁设备类型
     - 1   蓝牙
@@ -191,13 +186,7 @@ RespCode
 - CryptFlag 1
 ### 包体部分 
 **注意：包体部分是AES之后的数据，设备端需解密后验证时间和SessionId后处理**
-- svrtime     localtime 
-    - year         2Byte
-    - month        1Byte
-    - day          1Byte
-    - hour         1Byte
-    - second       1Byte
-    - microsecond  2Byte
+- svrtime         8Byte timestamp  localtime 
 - devSessionId    4Byte
 - KeyType         1Byte  解锁设备类型
     - 1   蓝牙
@@ -216,13 +205,7 @@ RespCode
 - CryptFlag 1
 ### 包体部分 
 **注意：包体部分是AES之后的数据，设备端需解密后验证时间和SessionId后处理**
-- svrtime     localtime 
-    - year         2Byte
-    - month        1Byte
-    - day          1Byte
-    - hour         1Byte
-    - second       1Byte
-    - microsecond  2Byte
+- svrtime         8Byte timestamp  localtime 
 - devSessionId    4Byte
 - voice           1Byte  关锁音效
 ### 应答包
@@ -235,13 +218,7 @@ RespCode
 - CryptFlag 1
 ### 包体部分 
 **注意：包体部分是AES之后的数据，设备端需解密后验证时间和SessionId后处理**
-- svrtime     localtime 
-    - year         2Byte
-    - month        1Byte
-    - day          1Byte
-    - hour         1Byte
-    - second       1Byte
-    - microsecond  2Byte
+- svrtime         8Byte timestamp  localtime 
 - devSessionId    4Byte
 - shutdownMotor   1Byte  是否关闭电驱
 - maxSpeed        2Byte  限制的最高速度, 以m/s*100
@@ -257,13 +234,7 @@ RespCode
 - CryptFlag 1
 ### 包体部分 
 **注意：包体部分是AES之后的数据，设备端需解密后验证时间和SessionId后处理**
-- svrtime     localtime 
-    - year         2Byte
-    - month        1Byte
-    - day          1Byte
-    - hour         1Byte
-    - second       1Byte
-    - microsecond  2Byte
+- svrtime         8Byte timestamp  localtime 
 - devSessionId    4Byte
 - FileType        1Byte 
 - FileName        32Byte  char utf-8 
@@ -287,8 +258,8 @@ RespCode
     - month        1Byte
     - day          1Byte
     - hour         1Byte
-    - second       1Byte
-    - microsecond  2Byte
+    - second       1Byte   //以上数据在数据库中存为8字节 timestamp
+    - microsecond  2Byte   //另外字段存储，便于查找比较
 - eventType        1Byte
     - 1      用户使用Key开锁
     - 2      网络开锁
