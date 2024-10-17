@@ -27,6 +27,7 @@ httpRequest
 
 HttpResponse采用json形式返回
   成功时
+  - usrId
   - userSessionId
   - devList
     - devId
@@ -61,17 +62,91 @@ httpRequest
   - crc
 
 HttpResponse采用json形式返回
+  - usrId
   - userSessionId
   - errCode
     - 0xff  对应未完成手机号关联的用户
   - errMsg
 
+
+## 获取用户可使用的车辆
+/getUseDevs
+
+httpRequest
+  - type
+    - 1 wx小程序
+    - 2 独立App
+  - usrId
+  - userSessionId   
+  - timestamp
+  - crc
+
+HttpResponse采用json形式返回
+  成功时
+  - devList
+    - devId
+    - devType
+    - ownerFlag   所有权说明，1 拥有  2 家人共享  3 朋友临时分享
+  - devStatus   //仅返回第一个dev的状态数据，其他另外查询，参见devProcotol文件
+    - position
+      - lngPos
+      - latPos
+    - status
+    - miniiBatteryStatus
+    - batteryExist
+    - batteryId
+    - batteryStatus 
+    - seriesDataList  //[]
+
+  - errCode 0
+  失败时
+  - errCode
+  - errMsg
+
+
+
 ## 绑定车辆
 /bindDevWithUsr
+   
+httpRequest
+  - type
+    - 1 wx小程序
+    - 2 独立App
+  - usrId
+  - userSessionId   
+  - devId
+  - devType
+  - timestamp
+  - crc
+
+HttpResponse采用json形式返回
+  成功时
+    - errCode 0
+  失败时
+  - errCode
+  - errMsg
 
 
 ## 解绑车辆
 /unbindDev
+
+httpRequest
+  - type
+    - 1 wx小程序
+    - 2 独立App
+  - usrId
+  - userSessionId   
+  - devId
+  - devType
+  - timestamp
+  - crc
+
+HttpResponse采用json形式返回
+  成功时
+    - errCode 0
+  失败时
+  - errCode
+  - errMsg
 
 ## 共享车辆给家人
 /shareDevWithFamily
@@ -87,8 +162,26 @@ HttpResponse采用json形式返回
 
 
 
+## 车辆授权情况查询
+/devSharedStatus
+
+httpRequest
+  - userSessionId
+  - devId
+  - timestamp
+  - crc
+
+HttpResponse采用json形式返回
+  - devOwnerStatus  
+    []
+    - usrId
+    - ownerFlag
+  - errCode
+  - errMsg
+
 
 ## 设备当前状态查询
+/devStatus
 
 httpRequest
   - userSessionId
@@ -98,15 +191,21 @@ httpRequest
 
 HttpResponse采用json形式返回
   - devStatus
-  - devOwnerStatus  
-    []
-    - usrId
-    - ownerFlag
+    - position
+      - lngPos
+      - latPos
+    - status
+    - miniiBatteryStatus
+    - batteryExist
+    - batteryId
+    - batteryStatus 
+    - seriesDataList  //[]
   - errCode
   - errMsg
 
 
 ## 设备状态历史查询
+/devStatusHistory
 
 httpRequest
   - userSessionId
@@ -125,6 +224,7 @@ HttpResponse采用json形式返回
 
 
 ## 设备事件历史查询
+/getDevEvent
 
 httpRequest
   - userSessionId
@@ -140,6 +240,17 @@ HttpResponse采用json形式返回
     - eventDesc
   - errCode
   - errMsg
+
+
+## 电池状态历史查询
+
+
+## 电池事件历史查询
+
+
+
+#######################################################################################################################
+# 以下为待定，临时测试用
 
 
 # App发送设备控制命令

@@ -59,6 +59,8 @@ c = aes.EncryptECB(plain, plainLen, key);
 
 # 具体报文说明
 
+## --------------   dev -> svr 
+
 ## 设备注册
 tcp长连接情况下设备上电重启等条件下，设备连接服务端，发送的首条报文
 tcp短连接情况下设备连接服务端，发送的首条报文
@@ -91,6 +93,7 @@ RespCode
     - 其他值  暂未定义的错误
 
 
+
 ## 设备状态
 - MsgId  1002
 包体部分
@@ -110,19 +113,26 @@ RespCode
     - 1   目前对应的版本
 - lngPos   lng位置  double  8Byte
 - latPos   lat位置  double  8Byte
-- status   工作状态  6Byte
+- status   工作状态  8Byte
     - lockStuats    1Byte  bit0 电气锁  bit1 座桶锁 bit2 手套箱锁 bit3 头盔锁 bit4 电驱锁
     - moveStatus    2Byte  移动状态，速度 整数 mm/s
-    - lightStatus   1Byte  灯光状态
+    - lightStatus   2Byte  灯光状态
         - bit0~1   照明大灯  0x01 开启 0x00 关闭  0x11 故障
         - bit2~3   示廓灯    0x01 开启 0x00 关闭  0x11 故障
         - bit4~5   转向灯    0x01 开启左转向灯  0x10 开启右转向灯 0x00 关闭  0x11 故障
         - bit6~7   双闪灯    0x01 开启 0x00 关闭  0x11 故障
+        - bit8~9   刹车灯    0x01 开启 0x00 关闭  0x11 故障
     - sensorStatus  1Byte  传感器状态  
         - bit0 座位传感器  
         - bit1 脚撑传感器 
         - bit2 儿童座位传感器
         - bit4 车辆倾倒状态
+    - brakeStatus   1Byte  刹车系统状态
+        - bit0 后轮刹车
+        - bit1 前轮刹车
+        - bit4 ABS工作
+        - bit5 TCS工作
+
     - reserved      1Byte
 - miniiBatteryStatus  中控小电池状态
     - socPercent    1Byte           u8   0~100
@@ -136,6 +146,8 @@ RespCode
     - socPercent    1Byte           u8   0~100   
     - voltage       2Byte           u16  电压值*100
     - temp          2Byte           i16  温度值*100
+    - bCharge       1Byte           bool 是否充电中
+    - current       2Byte           u16  电流值*100
 - seriesCount       1Byte           u8   多少串
 - seriesData        4 * s_count Byte   每串的数据
     - voltage       2Byte           u16  每串电压值*100  
@@ -145,7 +157,68 @@ RespCode
 当设备位置发生明显变化时，每1min(待实测评估)上传一次设备状态信息
 
 
-## 授权开锁
+## 车辆行程  
+在每次行程结束时，车辆发送该报文到svr，行程由车辆计算得出，单位m
+- MsgId  1008
+- CryptFlag 1
+### 包体部分 
+**注意：包体部分是AES之后的数据，设备端需解密后验证时间和SessionId后处理**
+- st_time localtim
+    - year         2Byte
+    - month        1Byte
+    - day          1Byte
+    - hour         1Byte
+    - min          1Byte
+    - second       1Byte   //以上数据在数据库中存为8字节 timestamp
+- st_lngPos    lng位置  float8  8Byte
+- st_latPos    lat位置  float8  8Byte  
+- end_time     localtime
+    - year         2Byte
+    - month        1Byte
+    - day          1Byte
+    - hour         1Byte
+    - min          1Byte
+    - second       1Byte   //以上数据在数据库中存为8字节 timestamp
+- end_lngPos   lng位置  float8  8Byte
+- end_latPos   lat位置  float8  8Byte  
+- ltinerary    //行程  以m记  int
+
+### 应答包
+- RespCode
+    - 0   Ok
+    - 1   拒绝
+
+
+## 设备事件上报
+- MsgId  1010
+- CryptFlag 1
+### 包体部分
+**注意：包体部分是AES之后的数据，需解密后处理**
+- eventCount  事件数量
+- evTime localtime
+    - year         2Byte
+    - month        1Byte
+    - day          1Byte
+    - hour         1Byte
+    - min          1Byte
+    - second       1Byte   //以上数据在数据库中存为8字节 timestamp
+    - microsecond  2Byte   //另外字段存储，便于查找比较
+- eventType        1Byte
+    - 1      用户使用Key开锁
+    - 2      网络开锁
+    - 3      自动锁车
+    - 4      用户锁车
+    - 5      在车充电
+    - 6      车辆电池被取出
+    - 7      车辆电池被放入
+    - 8      车辆倾倒
+    - 9      车辆未解锁被移动
+
+
+
+## --------------   svr -> dev
+
+## 授权开锁  
 - MsgId  2001
 - CryptFlag 1
 ### 包体部分 
@@ -161,8 +234,7 @@ RespCode
     - 1   拒绝
 
 
-
-## 授权解锁设备
+## 授权解锁设备 
 - MsgId  2002
 - CryptFlag 1
 ### 包体部分 
@@ -213,6 +285,7 @@ RespCode
     - 0   Ok
     - 1   拒绝
 
+
 ## 限制使用
 - MsgId  2010
 - CryptFlag 1
@@ -247,26 +320,3 @@ RespCode
     - 1   拒绝
 
 
-## 设备事件上报
-- MsgId  1010
-- CryptFlag 1
-### 包体部分
-**注意：包体部分是AES之后的数据，需解密后处理**
-- eventCount  事件数量
-- evTime localtime
-    - year         2Byte
-    - month        1Byte
-    - day          1Byte
-    - hour         1Byte
-    - second       1Byte   //以上数据在数据库中存为8字节 timestamp
-    - microsecond  2Byte   //另外字段存储，便于查找比较
-- eventType        1Byte
-    - 1      用户使用Key开锁
-    - 2      网络开锁
-    - 3      自动锁车
-    - 4      用户锁车
-    - 5      在车充电
-    - 6      车辆电池被取出
-    - 7      车辆电池被放入
-    - 8      车辆倾倒
-    - 9      车辆未解锁被移动
