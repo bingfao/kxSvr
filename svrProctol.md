@@ -23,12 +23,11 @@ httpRequest
   - usrCode   
     - 对wx小程序  是wx登录返回的code , 系统后台数据库记录openid,uuid、phoneNum,这3个字段关联匹配，均可作为用户唯一标识
   - timestamp
-  - crc
 
 HttpResponse采用json形式返回
   成功时
   - usrId
-  - userSessionId
+  - usrSessionId
   - devList
     - devId
     - devType
@@ -59,27 +58,30 @@ httpRequest
   - authCode   
     - 对wx小程序  是wx小程序点击获取用户手机号返回的code , 系统基于此来查找该用户手机号等信息
   - timestamp
-  - crc
 
 HttpResponse采用json形式返回
   - usrId
-  - userSessionId
+  - usrSessionId
   - errCode
     - 0xff  对应未完成手机号关联的用户
   - errMsg
 
 
+**重要说明**
+  **仅usrLogin和usrRegister返回usrSessionId,usrSessionId的有效时长24h,之后需重新login获取**
+  **后续其他报文req中，仅包含usrId,但crc部分有usrSessionId参与计算得出，svr基于此校验报文**
+
 ## 获取用户可使用的车辆
-/getUseDevs
+/getUsrDevs
 
 httpRequest
   - type
     - 1 wx小程序
     - 2 独立App
   - usrId
-  - userSessionId   
+  - usrSessionId   
   - timestamp
-  - crc
+  - hash
 
 HttpResponse采用json形式返回
   成功时
@@ -87,6 +89,7 @@ HttpResponse采用json形式返回
     - devId
     - devType
     - ownerFlag   所有权说明，1 拥有  2 家人共享  3 朋友临时分享
+    - dev
   - devStatus   //仅返回第一个dev的状态数据，其他另外查询，参见devProcotol文件
     - position
       - lngPos
@@ -101,6 +104,7 @@ HttpResponse采用json形式返回
   - errCode 0
   失败时
   - errCode
+    - 0xFF 请求的参数存在错误
   - errMsg
 
 
@@ -113,7 +117,7 @@ httpRequest
     - 1 wx小程序
     - 2 独立App
   - usrId
-  - userSessionId   
+  - usrSessionId   
   - devId
   - devType
   - timestamp
@@ -135,7 +139,7 @@ httpRequest
     - 1 wx小程序
     - 2 独立App
   - usrId
-  - userSessionId   
+  - usrSessionId   
   - devId
   - devType
   - timestamp
@@ -166,7 +170,7 @@ HttpResponse采用json形式返回
 /devSharedStatus
 
 httpRequest
-  - userSessionId
+  - usrSessionId
   - devId
   - timestamp
   - crc

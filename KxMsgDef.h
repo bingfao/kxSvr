@@ -59,16 +59,16 @@ public:
 
 struct KxDevRegPacketBody
 {
-    unsigned short tmYear;
-    unsigned char tmMonth;
-    unsigned char tmDay;
-    unsigned char tmHour;
-    unsigned char tmMin;
-    unsigned char tmSec;
-    unsigned int nDevHwVersion;
-    unsigned int nDevSoftVersion;
-    unsigned int nMotorCtrlHWVer;
-    unsigned int mMotorCtrlSoftVer;
+	unsigned short tmYear;
+	unsigned char tmMonth;
+	unsigned char tmDay;
+	unsigned char tmHour;
+	unsigned char tmMin;
+	unsigned char tmSec;
+	unsigned int nDevHwVersion;
+	unsigned int nDevSoftVersion;
+	unsigned int nMotorCtrlHWVer;
+	unsigned int mMotorCtrlSoftVer;
 };
 
 struct KxMiniBatteryStatus
@@ -76,30 +76,64 @@ struct KxMiniBatteryStatus
 	//
 };
 
+struct KxDev_Status_
+{
+	unsigned char lockStatus;
+	unsigned short moveStatus;
+	unsigned short lightStatus;
+	unsigned char sensorStatus;
+	unsigned char brakeStatus;
+	unsigned char reserved;
+};
+
+struct KxDev_MiniBatteryStatus_
+{
+	unsigned char socPercent;
+	unsigned short voltage;
+	unsigned short temp;
+};
+
+struct KxDev_BatteryStatus_
+{
+	unsigned char socPercent;
+	unsigned short voltage;
+	unsigned short temp;
+	unsigned char bCharge;
+	unsigned char current;
+};
+
+struct KxDev_BatterySerieData_
+{
+	unsigned short voltage;
+	unsigned short temp;
+};
+
 struct KxDevStatusPacketBody_Base
 {
 	unsigned char nDevType;
+	unsigned char nProtocolFlag;
 	double lngPox;
 	double latPos;
-	unsigned int nStatus;
-	unsigned char szBatteryId[6];
-	unsigned char nSocPercent;
-	unsigned short nVoltage;
-	short nTemperature;
-	unsigned char nSeriesCount;
+	KxDev_Status_ Status;
+	KxDev_MiniBatteryStatus_ miniBattery;
+	unsigned char batteryExist;
+	char szBatteryId[32];
+	KxDev_BatteryStatus_ batteryStatus;
+	unsigned char seriesCount;
+	KxDev_BatterySerieData_ seriesData;
 };
 
 struct KxAppDevCtrlOpenLockPacketBody
 {
-	unsigned int   nDevId;
+	unsigned int nDevId;
 	unsigned short nAlowTime;
-	unsigned char  nLowestSocP;
-	unsigned int   nFarthestDist;
+	unsigned char nLowestSocP;
+	unsigned int nFarthestDist;
 };
 
 struct KxDevRegRespPacketBody
 {
-    unsigned int nDevSessionId;
+	unsigned int nDevSessionId;
 };
 
 #pragma pack()

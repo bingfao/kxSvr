@@ -347,17 +347,22 @@ void thread_sendrecv(SOCKET &client_sock, unsigned int nDevId)
 
                             // 发送状态信息
                             KxDevStatusPacketBody_Base *pDevStatus = (KxDevStatusPacketBody_Base *)(sendbuf + sizeof(KxMsgHeader));
-                            pDevStatus->nDevType = 2;
-                            pDevStatus->nSeriesCount = 0;
-                            pDevStatus->nSocPercent = 90;
-                            pDevStatus->nVoltage = 5440;
-                            pDevStatus->nTemperature = 3200;
+                            pDevStatus->nDevType = 1;
+                            pDevStatus->seriesCount = 0;
+                            pDevStatus->batteryExist = 1;
+                            strcpy_s(pDevStatus->szBatteryId,"FFAD2002024991");
+                            pDevStatus->batteryStatus.socPercent = 90;
+                            pDevStatus->batteryStatus.voltage = 5440;
+                            pDevStatus->batteryStatus.temp = 3200;
 
                             std::time_t tm_res = std::time(nullptr);
                             auto thread_id = std::this_thread::get_id();
 
-                            pDevStatus->nStatus = *(unsigned int *)(&tm_res) & *(unsigned int *)(&thread_id);
-                            std::cout << "devId: " << nDevId << ", devStatus is: 0x" << std::hex << pDevStatus->nStatus << std::dec << std::endl;
+                            int *pStatusLow = (int *)(&pDevStatus->Status);
+                            int *pStatusHigh = pStatusLow + 1;
+                            *pStatusLow = *(int *)(&tm_res);
+                            *pStatusHigh = *(int *)(&thread_id);
+                            std::cout << "devId: " << nDevId << ", devStatus is: 0x" << std::hex << *pStatusLow <<' '<<*pStatusHigh<< std::dec << std::endl;
 
                             pMsgHeader->nMsgId = 1002;
                             ++pMsgHeader->nSeqNum;

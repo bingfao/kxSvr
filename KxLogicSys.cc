@@ -159,26 +159,33 @@ void KxBusinessLogicMgr::DevStatusMsgCallBack(std::shared_ptr<KxDevSession> sess
 	try
 	{
 		// pqxx::connection c{"host=localhost port=5432 dbname=kingxun user=postgres password=bingfao"};
+
+#ifdef WIN32
+		pqxx::connection c{"postgresql://postgres:gb6205966@localhost/postgres"};
+#else
 		pqxx::connection c{"postgresql://postgres:bingfao@localhost/kingxun"};
+#endif
 		pqxx::work tx{c};
 		KxDevStatusPacketBody_Base *pDevStatus = (KxDevStatusPacketBody_Base *)msgPacket.getMsgBodyBuf();
 
-		auto tm_now = std::localtime(&t_c);
-		std::string strnow = std::format("{:d}-{:d}-{:d} {:d}:{:d}:{:d}", tm_now->tm_year + 1900, tm_now->tm_mon + 1, tm_now->tm_mday, tm_now->tm_hour, tm_now->tm_min, tm_now->tm_sec);
+		// auto tm_now = std::localtime(&t_c);
+		// std::string strnow = std::format("{:d}-{:d}-{:d} {:d}:{:d}:{:d}", tm_now->tm_year + 1900, tm_now->tm_mon + 1, tm_now->tm_mday, tm_now->tm_hour, tm_now->tm_min, tm_now->tm_sec);
 
 		// std::cout << "strnow is: " << strnow << std::endl;
 		// std::cout << "nStatus is: 0x" << std::hex << pDevStatus->nStatus << std::dec << std::endl;
-		std::string strsql = std::format("Insert into devStatus (devId,devType,devStatus,stTime) values ({:d},{:d},'\\x{:0>8X}','{:s}')",
+		unsigned int *pStatusLow = (unsigned int *)(&pDevStatus->Status);
+		unsigned int *pStatusHigh = pStatusLow + 1;
+		std::string strsql = std::format("Insert into devStatus (devId,devType,status,\"batteryExist\",\"batteryId\",stTime) values ({:d},{:d},'\\x{:0>8x}{:0>8x}',{},'{:s}',localtimestamp({:d}) );",
 										 msgPacket.getDevId(),
 										 pDevStatus->nDevType,
-										 pDevStatus->nStatus, strnow);
-		// std::cout << "sql is: " << strsql << std::endl;
+										 *pStatusLow, *pStatusHigh, pDevStatus->batteryExist ==1 , pDevStatus->szBatteryId, t_c);
+		std::cout << "sql is: " << strsql << std::endl;
 		tx.exec(strsql);
 		tx.commit();
 	}
 	catch (std::exception const &e)
 	{
-		//std::cerr << "ERROR: " << e.what() << std::endl;
+		// std::cerr << "ERROR: " << e.what() << std::endl;
 		std::string strLog = "ERROR: ";
 		strLog += e.what();
 		KX_LOG_FUNC_(strLog);

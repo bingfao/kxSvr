@@ -141,7 +141,7 @@ RespCode
 - batteryExist      1Byte           
     - 1 存在
     - 0 不存在, 当动力电池不存在时，后续字段无效
-- batteryId         16Byte           动力电池编号 string
+- batteryId         32Byte           动力电池编号 string
 - batteryStatus     动力电池状态
     - socPercent    1Byte           u8   0~100   
     - voltage       2Byte           u16  电压值*100
