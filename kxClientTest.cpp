@@ -348,21 +348,35 @@ void thread_sendrecv(SOCKET &client_sock, unsigned int nDevId)
                             // 发送状态信息
                             KxDevStatusPacketBody_Base *pDevStatus = (KxDevStatusPacketBody_Base *)(sendbuf + sizeof(KxMsgHeader));
                             pDevStatus->nDevType = 1;
-                            pDevStatus->seriesCount = 0;
-                            pDevStatus->batteryExist = 1;
-                            strcpy_s(pDevStatus->szBatteryId,"FFAD2002024991");
+                            pDevStatus->nProtocolFlag = 1;
+                            pDevStatus->lngPos = 121.54409;
+                            pDevStatus->latPos = 31.22114;
+                            pDevStatus->bDriving = 1;
+                            pDevStatus->speed = 4560;
+                            pDevStatus->bMiniBatExist = true;
+                            strcpy_s(pDevStatus->szMiniBatteryId, "EEAD2002024991");
+                            pDevStatus->miniBatteryStatus.socPercent=82;
+                            pDevStatus->miniBatteryStatus.voltage = 1320;
+                            pDevStatus->seriesCount = 1;
+                            pDevStatus->batteryExist = true;
+                            pDevStatus->chargeFlag = 0;
+                            strcpy_s(pDevStatus->szBatteryId, "FFAD2002024991");
                             pDevStatus->batteryStatus.socPercent = 90;
                             pDevStatus->batteryStatus.voltage = 5440;
                             pDevStatus->batteryStatus.temp = 3200;
 
+                            pDevStatus->batteryStatus.current = 0;
+
                             std::time_t tm_res = std::time(nullptr);
-                            auto thread_id = std::this_thread::get_id();
+                            //auto thread_id = std::this_thread::get_id();
 
                             int *pStatusLow = (int *)(&pDevStatus->Status);
-                            int *pStatusHigh = pStatusLow + 1;
+                            // int *pStatusHigh = pStatusLow + 1;
                             *pStatusLow = *(int *)(&tm_res);
-                            *pStatusHigh = *(int *)(&thread_id);
-                            std::cout << "devId: " << nDevId << ", devStatus is: 0x" << std::hex << *pStatusLow <<' '<<*pStatusHigh<< std::dec << std::endl;
+                            // *pStatusHigh = *(int *)(&thread_id);
+                            std::cout << "devId: " << nDevId << ", devStatus is: 0x" << std::hex << *pStatusLow << ' '
+                            //  << *pStatusHigh 
+                             << std::dec << std::endl;
 
                             pMsgHeader->nMsgId = 1002;
                             ++pMsgHeader->nSeqNum;
@@ -450,7 +464,7 @@ int main(int argc, const char **argv)
     std::vector<SOCKET> vec_Sock;
     SOCKET sock;
     // const auto start = std::chrono::steady_clock::now();
-    unsigned int nDevId = 1001;
+    unsigned int nDevId = 10001;
     for (auto i = 0; i < nClientCount; ++i)
     {
         sock = socket(AF_INET, SOCK_STREAM, IPPROTO::IPPROTO_TCP);

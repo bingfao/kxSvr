@@ -171,15 +171,77 @@ void KxBusinessLogicMgr::DevStatusMsgCallBack(std::shared_ptr<KxDevSession> sess
 		// auto tm_now = std::localtime(&t_c);
 		// std::string strnow = std::format("{:d}-{:d}-{:d} {:d}:{:d}:{:d}", tm_now->tm_year + 1900, tm_now->tm_mon + 1, tm_now->tm_mday, tm_now->tm_hour, tm_now->tm_min, tm_now->tm_sec);
 
-		// std::cout << "strnow is: " << strnow << std::endl;
-		// std::cout << "nStatus is: 0x" << std::hex << pDevStatus->nStatus << std::dec << std::endl;
+		std::string strsql;
+		int batstid = -1;
 		unsigned int *pStatusLow = (unsigned int *)(&pDevStatus->Status);
-		unsigned int *pStatusHigh = pStatusLow + 1;
-		std::string strsql = std::format("Insert into devStatus (devId,devType,status,\"batteryExist\",\"batteryId\",stTime) values ({:d},{:d},'\\x{:0>8x}{:0>8x}',{},'{:s}',localtimestamp({:d}) );",
-										 msgPacket.getDevId(),
-										 pDevStatus->nDevType,
-										 *pStatusLow, *pStatusHigh, pDevStatus->batteryExist ==1 , pDevStatus->szBatteryId, t_c);
-		std::cout << "sql is: " << strsql << std::endl;
+		unsigned short *pStatusHigh = (unsigned short *)(pStatusLow + 1);
+		// pDevStatus->miniBatteryStatus;
+		//  先写入batterystatus
+		std::string strSeriesData = "NULL";
+		if (pDevStatus->batteryExist)
+		{
+			auto &batteryStatus = pDevStatus->batteryStatus;
+			if (pDevStatus->seriesCount)
+			{
+				// KxDev_BatterySerieData_ *pSerieData = &pDevStatus->seriesData;
+				unsigned char *pSeriesBytes = (unsigned char *)(&pDevStatus->seriesData);
+				std::stringstream ss;
+				auto nSeriesDataBytes = sizeof(KxDev_BatterySerieData_) * pDevStatus->seriesCount;
+				for (int i = 0; i < nSeriesDataBytes; ++i)
+				{
+					ss << std::setw(2) << std::setfill('0') << std::hex << (short)pSeriesBytes[i];
+				}
+				strSeriesData = "'\\x" + ss.str() + "'";
+			}
+			// else
+			// {
+			// 	strsql = std::format("Insert into batterystatus (batteryid,socpercent,voltage,temp,currentflag,current,seriescount,stTime) values ('{:s}',{:d},{:d},{:d},{:d},{:d},{:d},localtimestamp({:d}) ) RETURNING batstid;",
+			// 						 pDevStatus->szBatteryId, batteryStatus.socPercent, batteryStatus.voltage, batteryStatus.temp,
+			// 						 batteryStatus.currentFlag, batteryStatus.current, pDevStatus->seriesCount, t_c);
+			// }
+			strsql = std::format("Insert into batterystatus (batteryid,socpercent,voltage,temp,currentflag,current,seriescount,seriesdata,stTime) values ('{:s}',{:d},{:d},{:d},{:d},{:d},{:d},{:s},localtimestamp({:d})  ) RETURNING batstid;",
+								 pDevStatus->szBatteryId, batteryStatus.socPercent, batteryStatus.voltage, batteryStatus.temp,
+								 batteryStatus.currentFlag, batteryStatus.current, pDevStatus->seriesCount, strSeriesData, t_c);
+			// std::cout << "sql is: " << strsql << std::endl;
+			KX_LOG_FUNC_(strsql);
+			pqxx::result r = tx.exec(strsql);
+			// tx.commit();
+
+			std::size_t const num_rows = std::size(r);
+			if (num_rows)
+			{
+				auto row = r[0];
+				pqxx::field const field = row[0];
+				batstid = field.as<int>();
+			}
+		}
+		std::string strbastid = "NULL";
+		if (batstid != -1)
+		{
+			strbastid = std::to_string(batstid);
+		}
+		std::string strbMiniBatId = "NULL";
+		std::string strbMiniBatStatus = "NULL";
+		if (pDevStatus->bMiniBatExist)
+		{
+			strbMiniBatId = "'";
+			strbMiniBatId += pDevStatus->szMiniBatteryId;
+			strbMiniBatId += "'";
+			auto nSeriesDataBytes = sizeof(KxDev_MiniBatteryStatus_);
+			unsigned char *pSeriesBytes = (unsigned char *)(&pDevStatus->miniBatteryStatus);
+			std::stringstream ss;
+			for (int i = 0; i < nSeriesDataBytes; ++i)
+			{
+				ss << std::setw(2) << std::setfill('0') << std::hex << (short)pSeriesBytes[i];
+			}
+			strbMiniBatStatus = "'\\x" + ss.str() + "'";
+		}
+		strsql = std::format("Insert into devStatus (devId,devType,devpos,bdriving,speed,status,bminibatexist,minibatteryid,miniibatterystatus,batteryexist,chargeflag,batteryid,batstid,stTime) values ({:d},{:d},'{},{}',{},{},'\\x{:0>8x}{:0>4x}',{},{},{},{},{},'{}',{},localtimestamp({:d}) );",
+							 msgPacket.getDevId(),
+							 pDevStatus->nDevType, pDevStatus->lngPos, pDevStatus->latPos, pDevStatus->bDriving, pDevStatus->speed,
+							 *pStatusLow, *pStatusHigh, pDevStatus->bMiniBatExist, strbMiniBatId,strbMiniBatStatus, pDevStatus->batteryExist, pDevStatus->chargeFlag, pDevStatus->szBatteryId, batstid, t_c);
+		KX_LOG_FUNC_(strsql);
+		// std::cout << "sql is: " << strsql << std::endl;
 		tx.exec(strsql);
 		tx.commit();
 	}

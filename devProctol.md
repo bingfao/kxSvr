@@ -134,13 +134,14 @@ RespCode
         - bit4 ABS工作
         - bit5 TCS工作
     - reserved      1Byte
+- miniBatteryExist  1Byte  当小电池不存在时，后续字段无效
 - miniBatteryId     30Byte  字符串
 - miniiBatteryStatus  中控小电池状态
     - socPercent    1Byte           u8   0~100
     - voltage       2Byte           u16  电压值*100
     - temp          2Byte           i16  温度值*100
-- batteryExist      1Byte           
-    - 1 存在
+- batteryExist      1Byte          
+    - 1 存在        
     - 0 不存在, 当动力电池不存在时，后续字段无效
 - chargeFlag        1Byte  是否在充电过程中  1 充电 0 非充电
 - batteryId         32Byte           动力电池编号 string

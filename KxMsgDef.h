@@ -79,7 +79,6 @@ struct KxMiniBatteryStatus
 struct KxDev_Status_
 {
 	unsigned char lockStatus;
-	unsigned short moveStatus;
 	unsigned short lightStatus;
 	unsigned char sensorStatus;
 	unsigned char brakeStatus;
@@ -98,8 +97,8 @@ struct KxDev_BatteryStatus_
 	unsigned char socPercent;
 	unsigned short voltage;
 	unsigned short temp;
-	unsigned char bCharge;
-	unsigned char current;
+	unsigned char currentFlag;
+	unsigned short current;
 };
 
 struct KxDev_BatterySerieData_
@@ -112,11 +111,16 @@ struct KxDevStatusPacketBody_Base
 {
 	unsigned char nDevType;
 	unsigned char nProtocolFlag;
-	double lngPox;
+	double lngPos;
 	double latPos;
+	bool bDriving;
+	unsigned short speed;
 	KxDev_Status_ Status;
-	KxDev_MiniBatteryStatus_ miniBattery;
-	unsigned char batteryExist;
+	bool bMiniBatExist;
+	char szMiniBatteryId[30];
+	KxDev_MiniBatteryStatus_ miniBatteryStatus;
+	bool batteryExist;
+	bool chargeFlag;
 	char szBatteryId[32];
 	KxDev_BatteryStatus_ batteryStatus;
 	unsigned char seriesCount;
