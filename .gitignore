@@ -3,7 +3,8 @@
 *.exe
 *.pdb
 log/
-./kxsvr_g
 ./pgdtest
 .vscode/settings.json
 devEnv.md
+kxsvr_g
+kxsvr

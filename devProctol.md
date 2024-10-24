@@ -111,17 +111,18 @@ RespCode
 
 - ProtocolFlag  应对后续协议升级用的标识
     - 1   目前对应的版本
-- lngPos   lng位置  double  8Byte
-- latPos   lat位置  double  8Byte
-- status   工作状态  8Byte
-    - lockStuats    1Byte  bit0 电气锁  bit1 座桶锁 bit2 手套箱锁 bit3 头盔锁 bit4 电驱锁
-    - moveStatus    2Byte  移动状态，速度 整数 mm/s
+- lngPos    lng位置  double  8Byte
+- latPos    lat位置  double  8Byte
+- bDriving  行驶状态  bool   1Byte
+- speed     行驶速度  U16    速度 整数 mm/s
+- status    工作状态  6Byte
+    - lockStuats    1Byte  bit0 电气锁  bit1 座桶锁 bit2 手套箱锁 bit3 头盔锁 bit4 电驱锁  bit取值1 为锁打开
     - lightStatus   2Byte  灯光状态
-        - bit0~1   照明大灯  0x01 开启 0x00 关闭  0x11 故障
-        - bit2~3   示廓灯    0x01 开启 0x00 关闭  0x11 故障
-        - bit4~5   转向灯    0x01 开启左转向灯  0x10 开启右转向灯 0x00 关闭  0x11 故障
-        - bit6~7   双闪灯    0x01 开启 0x00 关闭  0x11 故障
-        - bit8~9   刹车灯    0x01 开启 0x00 关闭  0x11 故障
+        - bit0~1   照明大灯  0b01 开启 0b00 关闭  0b11 故障
+        - bit2~3   示廓灯    0b01 开启 0b00 关闭  0b11 故障
+        - bit4~5   转向灯    0b01 开启左转向灯  0b10 开启右转向灯 0b00 关闭  0b11 故障
+        - bit6~7   双闪灯    0b01 开启 0b00 关闭  0b11 故障
+        - bit8~9   刹车灯    0b01 开启 0b00 关闭  0b11 故障
     - sensorStatus  1Byte  传感器状态  
         - bit0 座位传感器  
         - bit1 脚撑传感器 
@@ -132,8 +133,8 @@ RespCode
         - bit1 前轮刹车
         - bit4 ABS工作
         - bit5 TCS工作
-
     - reserved      1Byte
+- miniBatteryId     30Byte  字符串
 - miniiBatteryStatus  中控小电池状态
     - socPercent    1Byte           u8   0~100
     - voltage       2Byte           u16  电压值*100
@@ -141,17 +142,18 @@ RespCode
 - batteryExist      1Byte           
     - 1 存在
     - 0 不存在, 当动力电池不存在时，后续字段无效
+- chargeFlag        1Byte  是否在充电过程中  1 充电 0 非充电
 - batteryId         32Byte           动力电池编号 string
 - batteryStatus     动力电池状态
     - socPercent    1Byte           u8   0~100   
     - voltage       2Byte           u16  电压值*100
     - temp          2Byte           i16  温度值*100
-    - bCharge       1Byte           bool 是否充电中
+    - currentFlag   1Byte           U8   1  放电  2 充电
     - current       2Byte           u16  电流值*100
-- seriesCount       1Byte           u8   多少串
-- seriesData        4 * s_count Byte   每串的数据
-    - voltage       2Byte           u16  每串电压值*100  
-    - temp          2Byte           i16  每串温度值*100, 如无温度传感器，填0xFFFF  
+    - seriesCount       1Byte           u8   多少串
+    - seriesData        4 * s_count Byte   每串的数据
+        - voltage       2Byte           u16  每串电压值*100  
+        - temp          2Byte           i16  每串温度值*100, 如无温度传感器，填0xFFFF  
 
 设备位置未发生明显变化（距离<1m）时，每5min上传一次设备状态信息
 当设备位置发生明显变化时，每1min(待实测评估)上传一次设备状态信息
