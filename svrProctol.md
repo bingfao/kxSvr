@@ -89,18 +89,30 @@ HttpResponse采用json形式返回
     - devId
     - devType
     - ownerFlag   所有权说明，1 拥有  2 家人共享  3 朋友临时分享
-    - dev
-  - devStatus   //仅返回第一个dev的状态数据，其他另外查询，参见devProcotol文件
+    - nickname
+    - devPhotoUrl   
+  - devStatus
     - position
       - lngPos
       - latPos
+    - bdriving
+    - speed
     - status
-    - miniiBatteryStatus
+    - bMiniBatExist
+    - MiniBatteryid
+    - MiniiBatteryStatus
     - batteryExist
+    - chargeFlag
     - batteryId
     - batteryStatus 
-    - seriesDataList  //[]
-
+      - socpercent
+      - voltage
+      - temp
+      - currentflag
+      - current
+      - seriescount
+      - seriesdata  //[]
+    - sttime  //string形式的
   - errCode 0
   失败时
   - errCode
@@ -198,12 +210,24 @@ HttpResponse采用json形式返回
     - position
       - lngPos
       - latPos
+    - bdriving
+    - speed
     - status
-    - miniiBatteryStatus
+    - bMiniBatExist
+    - MiniBatteryid
+    - MiniiBatteryStatus
     - batteryExist
+    - chargeFlag
     - batteryId
     - batteryStatus 
-    - seriesDataList  //[]
+      - socpercent
+      - voltage
+      - temp
+      - currentflag
+      - current
+      - seriescount
+      - seriesdata  //[]
+    - sttime
   - errCode
   - errMsg
 

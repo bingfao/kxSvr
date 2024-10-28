@@ -77,6 +77,8 @@ tcp短连接情况下设备连接服务端，发送的首条报文
 - DevSoftVersion    4Byte
 - motorCtrlHWVer    4Byte
 - motorCtrlSoftVer  4Byte
+- dashboardHWVer    4Byte
+- dashboardSoftVer  4Byte
 
 ### 应答包
 服务端根据具体情况回复，
@@ -113,6 +115,7 @@ RespCode
     - 1   目前对应的版本
 - lngPos    lng位置  double  8Byte
 - latPos    lat位置  double  8Byte
+- mileage   行驶总里程  U32  以10m 为单位,四舍五入
 - bDriving  行驶状态  bool   1Byte
 - speed     行驶速度  U16    速度 整数 mm/s
 - status    工作状态  6Byte
@@ -149,6 +152,8 @@ RespCode
     - socPercent    1Byte           u8   0~100   
     - voltage       2Byte           u16  电压值*100
     - temp          2Byte           i16  温度值*100
+    - chargeCycle   2Byte           u16  充放电循环次数
+    - soH           1Byte           u8   0~100
     - currentFlag   1Byte           U8   1  放电  2 充电
     - current       2Byte           u16  电流值*100
     - seriesCount       1Byte           u8   多少串
@@ -184,7 +189,48 @@ RespCode
     - second       1Byte   //以上数据在数据库中存为8字节 timestamp
 - end_lngPos   lng位置  float8  8Byte
 - end_latPos   lat位置  float8  8Byte  
-- ltinerary    //行程  以m记  int
+- ltinerary    行程  以10m记  int
+- maxSpeed     最高速度
+- aveSpeed     平均速度
+- maxCurrent   最大供电电流
+
+
+
+### 应答包
+- RespCode
+    - 0   Ok
+    - 1   拒绝
+
+
+## 车辆充电完成  
+在每次充电结束时，车辆发送该报文到svr，为过滤因充电器接触不良，每次充电时长需大于30min，以30min内soc不再增长作为结束或者以电池反馈已充电完成作为结束
+- MsgId  1010
+- CryptFlag 1
+### 包体部分 
+**注意：包体部分是AES之后的数据，设备端需解密后验证时间和SessionId后处理**
+- st_time localtim
+    - year         2Byte
+    - month        1Byte
+    - day          1Byte
+    - hour         1Byte
+    - min          1Byte
+    - second       1Byte   //以上数据在数据库中存为8字节 timestamp
+- lngPos    lng位置  float8  8Byte
+- latPos    lat位置  float8  8Byte  
+- end_time     localtime
+    - year         2Byte
+    - month        1Byte
+    - day          1Byte
+    - hour         1Byte
+    - min          1Byte
+    - second       1Byte   //以上数据在数据库中存为8字节 timestamp
+- maxCurrent   最大充电电流
+- socBegin     开始时的SOC
+- socEnd       结束时的SOC
+- volBegin     开始时的电压
+- volEnd       结束时的电压
+
+
 
 ### 应答包
 - RespCode

@@ -238,8 +238,8 @@ int main(int argc, const char *argv[])
 
 // 175.24.207.98
 
-//  g++ ./*.cc -o ./kxsvr_g -std=c++20 -I../../asio/asio/include
-//  g++ ./*.cc -o ./kxsvr_g_pq -std=c++20 -I../../asio/asio/include -DUSING_PQ_DB_ -lpqxx -lpq
+//  g++ ./*.cc -o ./kxsvr -std=c++20 -I../../asio/asio/include
+//  g++ ./*.cc -o ./kxsvr -std=c++20 -I../../asio/asio/include -DUSING_PQ_DB_ -lpqxx -lpq
 
 //  cl /EHsc ./*.cc /std:c++20 -I D:\workspace\asio\asio\include -D_WIN32_WINNT=0x0601 /Fe:kxsvr.exe
 //  cl /EHsc ./*.cc /std:c++20 -I D:\workspace\asio\asio\include -D_WIN32_WINNT=0x0601 /Fe:kxsvr.exe  -DUSING_PQ_DB_ pqxx.lib libpq.lib  -ID:\\workspace\\libpqxx\\include -ID:\\workspace\\libpqxx\\build\\include
