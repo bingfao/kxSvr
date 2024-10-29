@@ -351,8 +351,9 @@ void thread_sendrecv(SOCKET &client_sock, unsigned int nDevId)
                             pDevStatus->nProtocolFlag = 1;
                             pDevStatus->lngPos = 121.54409;
                             pDevStatus->latPos = 31.22114;
-                            pDevStatus->bDriving = 1;
-                            pDevStatus->speed = 4560;
+                            pDevStatus->mileage = 32*nDevId;
+                            // pDevStatus->bDriving = 1;
+                            // pDevStatus->speed = 4.8*nDevId;
                             pDevStatus->bMiniBatExist = true;
                             strcpy_s(pDevStatus->szMiniBatteryId, "EEAD2002024991");
                             pDevStatus->miniBatteryStatus.socPercent=82;
@@ -367,16 +368,20 @@ void thread_sendrecv(SOCKET &client_sock, unsigned int nDevId)
 
                             pDevStatus->batteryStatus.current = 0;
 
-                            std::time_t tm_res = std::time(nullptr);
+                            //std::time_t tm_res = std::time(nullptr);
                             //auto thread_id = std::this_thread::get_id();
 
-                            int *pStatusLow = (int *)(&pDevStatus->Status);
-                            // int *pStatusHigh = pStatusLow + 1;
-                            *pStatusLow = *(int *)(&tm_res);
+                            // int *pStatusLow = (int *)(&pDevStatus->Status);
+                            // // int *pStatusHigh = pStatusLow + 1;
+                            // *pStatusLow = *(int *)(&tm_res);
+                            pDevStatus->Status.lockStatus = 0x0D;
+                            pDevStatus->Status.lightStatus = 0x05;
+                            pDevStatus->Status.sensorStatus = 0x06;
+                            pDevStatus->Status.brakeStatus = 0x33;
                             // *pStatusHigh = *(int *)(&thread_id);
-                            std::cout << "devId: " << nDevId << ", devStatus is: 0x" << std::hex << *pStatusLow << ' '
-                            //  << *pStatusHigh 
-                             << std::dec << std::endl;
+                            // std::cout << "devId: " << nDevId << ", devStatus is: 0x" << std::hex << *pStatusLow << ' '
+                            // //  << *pStatusHigh 
+                            //  << std::dec << std::endl;
 
                             pMsgHeader->nMsgId = 1002;
                             ++pMsgHeader->nSeqNum;

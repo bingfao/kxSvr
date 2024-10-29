@@ -114,7 +114,8 @@ struct KxDevStatusPacketBody_Base
 	double lngPos;
 	double latPos;
 	bool bDriving;
-	unsigned short speed;
+	unsigned int mileage;   
+	short speed;
 	KxDev_Status_ Status;
 	bool bMiniBatExist;
 	char szMiniBatteryId[30];

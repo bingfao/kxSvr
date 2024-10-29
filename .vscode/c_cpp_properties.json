@@ -6,7 +6,8 @@
                 "${default}",
                 "D:\\workspace\\asio\\asio\\include",
                 "D:\\workspace\\libpqxx\\include",
-                "D:\\workspace\\libpqxx\\build\\include"
+                "D:\\workspace\\libpqxx\\build\\include",
+                "C:\\Program Files\\OpenSSL\\include"
             ],
             "defines": [
                 "_DEBUG",

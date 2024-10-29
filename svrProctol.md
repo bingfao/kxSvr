@@ -1,25 +1,19 @@
 
 # 基本规则
 
-svrMgr 对应管理不同的svrInstance
-svrInstance 对应处理一定范围Id的device
-dev出厂时设定的svrIp/Port，如后台规则调整，DevReg应答时返回dev应该连接的ip/port
-wx小程序内，查看dev的状态、事件等信息，由svrMgr提供一定时间的动态缓存数据，
-  控制dev的指令交互，tcp连接对应的svrInstance，svrInstance再发给对应的dev
 
+wx小程序通过https，调用webSvr接口，查看dev的状态、事件等信息
+通过App对设备进行控制操作，由webSvr与svrMgr通信来实现。
 
-为方便App获取设备的当前状态以及历史数据信息，svrMgr提供https接口
-通过App对设备进行控制操作，由svrMgr的另外tcp接口，通信采用加密方式,AES-128,基于用户ID和登录设备ID，唯一分配的 AES  key。
-
-# MgrHttpsSvr
+# wxApp  <--->  WebSvr
 
 ## 用户登录
 /usrLogin
 
 httpRequest
-  - type
+  - type          
     - 1 wx小程序
-    - 2 独立App
+    - 2 独立App   
   - usrCode   
     - 对wx小程序  是wx登录返回的code , 系统后台数据库记录openid,uuid、phoneNum,这3个字段关联匹配，均可作为用户唯一标识
   - timestamp
@@ -75,11 +69,10 @@ HttpResponse采用json形式返回
 /getUsrDevs
 
 httpRequest
-  - type
+  - type          //type不参与计算hash
     - 1 wx小程序
-    - 2 独立App
+    - 2 独立App   
   - usrId
-  - usrSessionId   
   - timestamp
   - hash
 
@@ -95,6 +88,7 @@ HttpResponse采用json形式返回
     - position
       - lngPos
       - latPos
+    - mileage
     - bdriving
     - speed
     - status
@@ -125,15 +119,14 @@ HttpResponse采用json形式返回
 /bindDevWithUsr
    
 httpRequest
-  - type
+  - type          //type不参与计算hash
     - 1 wx小程序
-    - 2 独立App
+    - 2 独立App   
   - usrId
-  - usrSessionId   
   - devId
   - devType
   - timestamp
-  - crc
+  - hash
 
 HttpResponse采用json形式返回
   成功时
@@ -147,15 +140,14 @@ HttpResponse采用json形式返回
 /unbindDev
 
 httpRequest
-  - type
+  - type          //type不参与计算hash
     - 1 wx小程序
-    - 2 独立App
+    - 2 独立App   
   - usrId
-  - usrSessionId   
   - devId
   - devType
   - timestamp
-  - crc
+  - hash
 
 HttpResponse采用json形式返回
   成功时
@@ -167,8 +159,50 @@ HttpResponse采用json形式返回
 ## 共享车辆给家人
 /shareDevWithFamily
 
+httpRequest
+  - type          //type不参与计算hash
+    - 1 wx小程序
+    - 2 独立App   
+  - usrId
+  - devId
+  - devType
+  - fmPhone           // 字符串
+  - shareTracks       // bool
+  - shareLtinerary    // bool
+  - timestamp
+  - hash
+
+HttpResponse采用json形式返回
+  成功时
+    - errCode 0
+  失败时
+  - errCode
+    - 200 该手机号码需要注册
+    - 300 超出最大允许共享人数
+  - errMsg
+
+
 ## 取消车辆家人共享
 /unshareDevWithFamily
+
+httpRequest
+  - type          //type不参与计算hash
+    - 1 wx小程序
+    - 2 独立App   
+  - usrId
+  - devId
+  - devType
+  - fmPhone           // 字符串
+  - timestamp
+  - hash
+
+HttpResponse采用json形式返回
+  成功时
+    - errCode 0
+  失败时
+  - errCode
+    - 200 该手机号码未注册
+  - errMsg
 
 ## 临时分享车辆
 /tmpShareDevTo
@@ -182,10 +216,14 @@ HttpResponse采用json形式返回
 /devSharedStatus
 
 httpRequest
-  - usrSessionId
+  - type          //type不参与计算hash
+    - 1 wx小程序
+    - 2 独立App   
+  - usrId
   - devId
+  - devType
   - timestamp
-  - crc
+  - hash
 
 HttpResponse采用json形式返回
   - devOwnerStatus  
@@ -200,16 +238,21 @@ HttpResponse采用json形式返回
 /devStatus
 
 httpRequest
-  - userSessionId
+  - type          //type不参与计算hash
+    - 1 wx小程序
+    - 2 独立App   
+  - usrId
   - devId
+  - devType
   - timestamp
-  - crc
+  - hash
 
 HttpResponse采用json形式返回
   - devStatus
     - position
       - lngPos
       - latPos
+    - mileage
     - bdriving
     - speed
     - status
@@ -236,16 +279,20 @@ HttpResponse采用json形式返回
 /devStatusHistory
 
 httpRequest
-  - userSessionId
+  - type          //type不参与计算hash
+    - 1 wx小程序
+    - 2 独立App  
+  - usrId 
   - devId
+  - devType
   - timeStart
   - timeEnd
-  - crc
+  - hash
 
 HttpResponse采用json形式返回
   - devStatusArray
-    - statusTimeStart
-    - statusTimeEnd
+    - TimeStart
+    - TimeEnd
     - devStatus
   - errCode
   - errMsg
@@ -255,11 +302,15 @@ HttpResponse采用json形式返回
 /getDevEvent
 
 httpRequest
-  - userSessionId
+  - type          //type不参与计算hash
+    - 1 wx小程序
+    - 2 独立App   
+  - usrId
   - devId
+  - devType
   - timeStart
   - timeEnd
-  - crc
+  - hash
 
 HttpResponse采用json形式返回
   - devEventArray
@@ -270,6 +321,67 @@ HttpResponse采用json形式返回
   - errMsg
 
 
+## 车辆最近行程查询
+/devLtinerary
+
+httpRequest
+  - type          //type不参与计算hash
+    - 1 wx小程序
+    - 2 独立App  
+  - usrId 
+  - devId
+  - devType
+  - hash
+
+HttpResponse采用json形式返回
+  - TimeStart
+  - TimeEnd
+  - st_lngPos    lng位置  float8  8Byte
+  - st_latPos    lat位置  float8  8Byte  
+  - end_lngPos   lng位置  float8  8Byte
+  - end_latPos   lat位置  float8  8Byte  
+  - ltinerary    行程  以10m记  int
+  - maxSpeed     最高速度
+  - aveSpeed     平均速度
+  - maxCurrent   最大供电电流
+  - batteryId    电池编号 
+
+  - errCode
+  - errMsg
+
+
+## 车辆历史行程查询
+/devLtineraryHistory
+
+httpRequest
+  - type          //type不参与计算hash
+    - 1 wx小程序
+    - 2 独立App  
+  - usrId 
+  - devId
+  - devType
+  - timeStart
+  - timeEnd
+  - hash
+
+HttpResponse采用json形式返回
+  - LtineraryArray    []
+    - TimeStart
+    - TimeEnd
+    - st_lngPos    lng位置  float8  8Byte
+    - st_latPos    lat位置  float8  8Byte  
+    - end_lngPos   lng位置  float8  8Byte
+    - end_latPos   lat位置  float8  8Byte  
+    - ltinerary    行程  以10m记  int
+    - maxSpeed     最高速度
+    - aveSpeed     平均速度
+    - maxCurrent   最大供电电流
+    - batteryId    电池编号 
+  - errCode
+  - errMsg
+
+
+
 ## 电池状态历史查询
 
 
@@ -277,35 +389,130 @@ HttpResponse采用json形式返回
 
 
 
+
+
+
 #######################################################################################################################
-# 以下为待定，临时测试用
+# WebSvr <--->  svrInstance
 
+此部分报文格式参见devProctol的包头和包体部分
 
-# App发送设备控制命令
+## 连接验证
+- MsgId 9001
+- CryptFlag 1    
 
-App通过连接Tcp Socket 发起控制命令
+### 包体部分 
+**注意：包体部分是AES之后的数据**
+- svrIp
+- svrHost
+- timestamp    8Byte
+
+以上数据用初始密钥加密  AES-256-CBC, KEY,IV 均用初始值
+
+### 应答包
+- RespCode
+    - 0   Ok
+    - 1   拒绝
+**注意：包体部分是AES之后的数据**
+- 加密部分报文
+  - newIV        16Byte     
+  - timestamp    8Byte
+- nDataLen  //原始数据的长度
+- crc16     //原始数据的crc16
+
+webSvr收到后，后续报文，使用该IV来做AES计算
+
+# 设备控制命令
 
 ## 远程开锁
 - MsgId  4001
 - CryptFlag 1
 ### 包体部分 
-**注意：包体部分是AES之后的数据，设备端需解密后验证时间和SessionId后处理**
-- devId           4Byte
-- allowTime       2Byte  允许使用的时长， 以min计
-- lowestSocP      1Byte  允许使用到的最低电量  0~100
-- farthestDist    4Byte  允许的最远距离，以m计
+
+**注意：包体部分是AES之后的数据**
+- 加密部分报文
+  - devId           4Byte
+  - devtype         1Byte  
+  - timestamp       8Byte
+  - usrId           4Byte
+  - allowTime       2Byte  允许使用的时长， 以min计
+  - lowestSocP      1Byte  允许使用到的最低电量  0~100
+  - farthestDist    4Byte  允许的最远距离，以m计
+- nDataLen  //原始数据的长度
+- crc16     //原始数据的crc16
+
 ### 应答包
 - RespCode
     - 0   Ok
     - 1   拒绝
 
-## 添加分享手机号
+
 
 ## 远程锁定
+- MsgId  4002
+- CryptFlag 1
+### 包体部分 
+
+**注意：包体部分是AES之后的数据**
+- 加密部分报文
+  - devId           4Byte
+  - devtype         1Byte  
+  - timestamp       8Byte
+  - usrId           4Byte
+  - voice           1Byte  关锁音效
+- nDataLen  //原始数据的长度
+- crc16     //原始数据的crc16
+
+### 应答包
+- RespCode
+    - 0   Ok
+    - 1   拒绝
+
+
 
 ## 远程防盗锁定
+- MsgId  4003
+- CryptFlag 1
+### 包体部分 
+
+**注意：包体部分是AES之后的数据**
+- 加密部分报文
+  - devId           4Byte
+  - devtype         1Byte  
+  - timestamp       8Byte
+  - usrId           4Byte
+  - shutdownMotor   1Byte  是否关闭电驱
+  - maxSpeed        2Byte  限制的最高速度, 以m/s*100
+  - warningVoice    1Byte  报警音效
+- nDataLen  //原始数据的长度
+- crc16     //原始数据的crc16
+
+### 应答包
+- RespCode
+    - 0   Ok
+    - 1   拒绝
+
 
 ## 灯光控制
+
+- MsgId  4004
+- CryptFlag 1
+### 包体部分 
+
+**注意：包体部分是AES之后的数据**
+- 加密部分报文
+  - devId           4Byte
+  - devtype         1Byte  
+  - timestamp       8Byte
+  - usrId           4Byte
+  - lightFlag       1Byte  
+- nDataLen  //原始数据的长度
+- crc16     //原始数据的crc16
+
+### 应答包
+- RespCode
+    - 0   Ok
+    - 1   拒绝
 
 ## 声响控制
 

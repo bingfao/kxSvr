@@ -4,9 +4,16 @@
 分为请求包和应答包报文
 设备端可以发起请求包报文,并接收服务端应答.
 服务端可以发起请求报文,设备端进行应答.
-对于部分报文类型，采用AES-128对报文包体数据进行加密处理,AES加密的报文数据如需填充，以00填充，根据设备Id对应的密钥。
+对于部分报文类型，采用AES-128-CBC 对报文包体数据进行加密处理,AES加密的报文数据如需填充，根据设备Id对应的密钥。
 服务端存储有所有设备的当前有效密钥，并提供机制对设备进行密钥更换。
 
+MCU的序列号 12Byte ，由生产工具叠加时间戳信息4Byte，然后AES 出16字节的对应该MCU的密钥Key：16Byte，
+由生产工具写入MCU或者PCBA的某个存储区域，服务器保存有所有MCU的序列号和Key信息，后续服务端下发的加密报文，利用该MCU的Key来做AES加密，
+MCU收到后利用自己的key来解密获得原始报文体数据，报文体包含基于原始数据的报文长度和CRC，解密后验证不匹配的报文丢弃
+
+svrMgr 对应管理不同的svrInstance
+svrInstance 对应处理一定范围Id的device
+dev出厂时设定的svrIp/Port，如后台规则调整，DevReg应答时返回dev应该连接的ip/port
 
 # 报文包格式简介
 
@@ -26,7 +33,7 @@
 - SessionId     4Byte
 
 ### 包体
-由包头中MsgBodyLen指定的报文长度，具体含义根据报文MsgId进行单独说明
+由包头中MsgBodyLen指定的报文长度，具体含义根据报文MsgId进行单独说明，针对加密的数据报文，MsgBodyLen是加密后的报文数据长度
 CryptFlag 如为1，则包体内容是做过AES ECB处理的
 
 ## 应答包
@@ -42,24 +49,16 @@ CryptFlag 如为1，则包体内容是做过AES ECB处理的
 - RespCode      4Byte
 ### 包体
 由包头中MsgBodyLen指定的报文长度，具体含义根据报文MsgId进行单独说明
-CryptFlag 如为1，则包体内容是做过AES ECB处理的
+CryptFlag 如为1，则包体内容是做过AES ECB处理的，
 
 **应答包必须与请求包的SeqNum一致**
 
 
-...
-unsigned char plain[] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff }; //plaintext example
-unsigned char key[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f }; //key example
-unsigned int plainLen = 16 * sizeof(unsigned char);  //bytes in plaintext
 
-AES aes(AESKeyLength::AES_128);  ////128 - key length, can be 128, 192 or 256
-c = aes.EncryptECB(plain, plainLen, key);
-//now variable c contains plainLen bytes - ciphertext
-...
 
 # 具体报文说明
 
-## --------------   dev -> svr 
+## --------------   dev -----> svrInstace 
 
 ## 设备注册
 tcp长连接情况下设备上电重启等条件下，设备连接服务端，发送的首条报文
@@ -169,30 +168,36 @@ RespCode
 在每次行程结束时，车辆发送该报文到svr，行程由车辆计算得出，单位m
 - MsgId  1008
 - CryptFlag 1
+
 ### 包体部分 
+
 **注意：包体部分是AES之后的数据，设备端需解密后验证时间和SessionId后处理**
-- st_time localtim
-    - year         2Byte
-    - month        1Byte
-    - day          1Byte
-    - hour         1Byte
-    - min          1Byte
-    - second       1Byte   //以上数据在数据库中存为8字节 timestamp
-- st_lngPos    lng位置  float8  8Byte
-- st_latPos    lat位置  float8  8Byte  
-- end_time     localtime
-    - year         2Byte
-    - month        1Byte
-    - day          1Byte
-    - hour         1Byte
-    - min          1Byte
-    - second       1Byte   //以上数据在数据库中存为8字节 timestamp
-- end_lngPos   lng位置  float8  8Byte
-- end_latPos   lat位置  float8  8Byte  
-- ltinerary    行程  以10m记  int
-- maxSpeed     最高速度
-- aveSpeed     平均速度
-- maxCurrent   最大供电电流
+- 加密部分报文
+    - st_time localtim
+        - year         2Byte
+        - month        1Byte
+        - day          1Byte
+        - hour         1Byte
+        - min          1Byte
+        - second       1Byte   //以上数据在数据库中存为8字节 timestamp
+    - st_lngPos    lng位置  float8  8Byte
+    - st_latPos    lat位置  float8  8Byte  
+    - end_time     localtime
+        - year         2Byte
+        - month        1Byte
+        - day          1Byte
+        - hour         1Byte
+        - min          1Byte
+        - second       1Byte   //以上数据在数据库中存为8字节 timestamp
+    - end_lngPos   lng位置  float8  8Byte
+    - end_latPos   lat位置  float8  8Byte  
+    - ltinerary    行程  以10m记  int
+    - maxSpeed     最高速度
+    - aveSpeed     平均速度
+    - maxCurrent   最大供电电流
+    - batteryId    电池编号            //如更换电池，上一行程结束，新行程重新开始
+- nDataLen  //原始数据的长度
+- crc16     //原始数据的crc16
 
 
 
@@ -208,27 +213,30 @@ RespCode
 - CryptFlag 1
 ### 包体部分 
 **注意：包体部分是AES之后的数据，设备端需解密后验证时间和SessionId后处理**
-- st_time localtim
-    - year         2Byte
-    - month        1Byte
-    - day          1Byte
-    - hour         1Byte
-    - min          1Byte
-    - second       1Byte   //以上数据在数据库中存为8字节 timestamp
-- lngPos    lng位置  float8  8Byte
-- latPos    lat位置  float8  8Byte  
-- end_time     localtime
-    - year         2Byte
-    - month        1Byte
-    - day          1Byte
-    - hour         1Byte
-    - min          1Byte
-    - second       1Byte   //以上数据在数据库中存为8字节 timestamp
-- maxCurrent   最大充电电流
-- socBegin     开始时的SOC
-- socEnd       结束时的SOC
-- volBegin     开始时的电压
-- volEnd       结束时的电压
+- 加密部分报文
+    - st_time localtim
+        - year         2Byte
+        - month        1Byte
+        - day          1Byte
+        - hour         1Byte
+        - min          1Byte
+        - second       1Byte   //以上数据在数据库中存为8字节 timestamp
+    - lngPos    lng位置  float8  8Byte
+    - latPos    lat位置  float8  8Byte  
+    - end_time     localtime
+        - year         2Byte
+        - month        1Byte
+        - day          1Byte
+        - hour         1Byte
+        - min          1Byte
+        - second       1Byte   //以上数据在数据库中存为8字节 timestamp
+    - maxCurrent   最大充电电流
+    - socBegin     开始时的SOC
+    - socEnd       结束时的SOC
+    - volBegin     开始时的电压
+    - volEnd       结束时的电压
+- nDataLen  //原始数据的长度
+- crc16     //原始数据的crc16
 
 
 
@@ -243,92 +251,71 @@ RespCode
 - CryptFlag 1
 ### 包体部分
 **注意：包体部分是AES之后的数据，需解密后处理**
-- eventCount  事件数量
-- evTime localtime
-    - year         2Byte
-    - month        1Byte
-    - day          1Byte
-    - hour         1Byte
-    - min          1Byte
-    - second       1Byte   //以上数据在数据库中存为8字节 timestamp
-    - microsecond  2Byte   //另外字段存储，便于查找比较
-- eventType        1Byte
-    - 1      用户使用Key开锁
-    - 2      网络开锁
-    - 3      自动锁车
-    - 4      用户锁车
-    - 5      在车充电
-    - 6      车辆电池被取出
-    - 7      车辆电池被放入
-    - 8      车辆倾倒
-    - 9      车辆未解锁被移动
+- 加密部分报文
+    - eventCount  事件数量
+    - events     []
+        - evTime localtime
+            - year         2Byte
+            - month        1Byte
+            - day          1Byte
+            - hour         1Byte
+            - min          1Byte
+            - second       1Byte   //以上数据在数据库中存为8字节 timestamp
+            - microsecond  2Byte   //另外字段存储，便于查找比较
+        - eventType        1Byte
+            - 1      用户使用Key开锁
+            - 2      网络开锁
+            - 3      自动锁车
+            - 4      用户锁车
+            - 5      在车充电
+            - 6      车辆电池被取出
+            - 7      车辆电池被放入
+            - 8      车辆倾倒
+            - 9      车辆未解锁被移动
+- nDataLen  //原始数据的长度
+- crc16     //原始数据的crc16
 
 
 
-## --------------   svr -> dev
+## --------------   svrInstance -----> dev
 
 ## 授权开锁  
 - MsgId  2001
 - CryptFlag 1
+
 ### 包体部分 
+
 **注意：包体部分是AES之后的数据，设备端需解密后验证时间和SessionId后处理**
-- svrtime         8Byte timestamp  localtime 
-- devSessionId    4Byte
-- allowTime       2Byte  允许使用的时长， 以min计
-- lowestSocP      1Byte  允许使用到的最低电量  0~100
-- farthestDist    4Byte  允许的最远距离，以m计
+- 加密部分报文
+    - svrtime         8Byte timestamp  localtime 
+    - devSessionId    4Byte
+    - allowTime       2Byte  允许使用的时长， 以min计
+    - lowestSocP      1Byte  允许使用到的最低电量  0~100
+    - farthestDist    4Byte  允许的最远距离，以m计
+- nDataLen  //原始数据的长度
+- crc16     //原始数据的crc16
+
 ### 应答包
 - RespCode
     - 0   Ok
     - 1   拒绝
 
-
-## 授权解锁设备 
-- MsgId  2002
-- CryptFlag 1
-### 包体部分 
-**注意：包体部分是AES之后的数据，设备端需解密后验证时间和SessionId后处理**
-- svrtime         8Byte timestamp  localtime  
-- devSessionId    4Byte
-- KeyType         1Byte  解锁设备类型
-    - 1   蓝牙
-    - 2   UWB
-    - 3   NFC
-- KeyIdLen        1Byte  解锁设备Id长度
-- KeyId           nByte  解锁设备的Id
-### 应答包
-- RespCode
-    - 0   Ok
-    - 1   拒绝
-
-
-## 禁用某一解锁设备
-- MsgId  2003
-- CryptFlag 1
-### 包体部分 
-**注意：包体部分是AES之后的数据，设备端需解密后验证时间和SessionId后处理**
-- svrtime         8Byte timestamp  localtime 
-- devSessionId    4Byte
-- KeyType         1Byte  解锁设备类型
-    - 1   蓝牙
-    - 2   UWB
-    - 3   NFC
-- KeyIdLen        1Byte  解锁设备Id长度
-- KeyId           nByte  解锁设备的Id
-### 应答包
-- RespCode
-    - 0   Ok
-    - 1   拒绝
 
 
 ## 网络锁车
-- MsgId  2009
+- MsgId  2002
 - CryptFlag 1
+
 ### 包体部分 
+
 **注意：包体部分是AES之后的数据，设备端需解密后验证时间和SessionId后处理**
-- svrtime         8Byte timestamp  localtime 
-- devSessionId    4Byte
-- voice           1Byte  关锁音效
+- 加密部分报文
+    - svrtime         8Byte timestamp  localtime 
+    - devSessionId    4Byte
+    - voice           1Byte  关锁音效
+- nDataLen  //原始数据的长度
+- crc16     //原始数据的crc16
+
 ### 应答包
 - RespCode
     - 0   Ok
@@ -336,36 +323,98 @@ RespCode
 
 
 ## 限制使用
-- MsgId  2010
+- MsgId  2003
 - CryptFlag 1
+
 ### 包体部分 
 **注意：包体部分是AES之后的数据，设备端需解密后验证时间和SessionId后处理**
-- svrtime         8Byte timestamp  localtime 
-- devSessionId    4Byte
-- shutdownMotor   1Byte  是否关闭电驱
-- maxSpeed        2Byte  限制的最高速度, 以m/s*100
-- warningVoice    1Byte  报警音效
+- 加密部分报文
+    - svrtime         8Byte timestamp  localtime 
+    - devSessionId    4Byte
+    - shutdownMotor   1Byte  是否关闭电驱
+    - maxSpeed        2Byte  限制的最高速度, 以m/s*100
+    - warningVoice    1Byte  报警音效
+- nDataLen  //原始数据的长度
+- crc16     //原始数据的crc16
+
 ### 应答包
 - RespCode
     - 0   Ok
     - 1   拒绝
+
 
 
 ## 文件下发
 - MsgId  2020
 - CryptFlag 1
+
 ### 包体部分 
+
 **注意：包体部分是AES之后的数据，设备端需解密后验证时间和SessionId后处理**
-- svrtime         8Byte timestamp  localtime 
-- devSessionId    4Byte
-- FileType        1Byte 
-- FileName        32Byte  char utf-8 
-- FileLen         4Byte  
-- FileMD5         16Byte
-- FileData        
+- 加密部分报文
+    - svrtime         8Byte timestamp  localtime 
+    - devSessionId    4Byte
+    - FileType        1Byte 
+    - FileName        32Byte  char utf-8 
+    - FileLen         4Byte  
+    - FileMD5         16Byte
+    - FileData        
+- nDataLen  //原始数据的长度
+- crc16     //原始数据的crc16
+
 ### 应答包
 - RespCode
     - 0   Ok
     - 1   拒绝
+
+
+## 授权解锁设备
+
+- MsgId  2021
+- CryptFlag 1
+
+### 包体部分 
+
+**注意：包体部分是AES之后的数据，设备端需解密后验证时间和SessionId后处理**
+- 加密部分报文
+    - svrtime         8Byte timestamp  localtime  
+    - devSessionId    4Byte
+    - KeyType         1Byte  解锁设备类型
+        - 1   NFC      //暂时可能只支持NFC一种，蓝牙等无法通过该方法
+    - KeyIdLen        1Byte  解锁设备Id长度
+    - KeyId           nByte  解锁设备的Id
+- nDataLen  //原始数据的长度
+- crc16     //原始数据的crc16
+
+### 应答包
+- RespCode
+    - 0   Ok
+    - 1   拒绝
+
+
+## 禁用某一解锁设备
+- MsgId  2022
+- CryptFlag 1
+
+### 包体部分 
+
+**注意：包体部分是AES之后的数据，设备端需解密后验证时间和SessionId后处理**
+- 加密部分报文
+    - svrtime         8Byte timestamp  localtime 
+    - devSessionId    4Byte
+    - KeyType         1Byte  解锁设备类型
+        - 1   NFC
+        - 2   BLE
+    - KeyIdLen        1Byte  解锁设备Id长度
+    - KeyId           nByte  解锁设备的Id
+- nDataLen  //原始数据的长度
+- crc16     //原始数据的crc16
+
+### 应答包
+- RespCode
+    - 0   Ok
+    - 1   拒绝
+
+
 
 
