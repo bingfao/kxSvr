@@ -5,19 +5,21 @@
 #ifndef KX_MSG_COMMON_DEF_H_
 #define KX_MSG_COMMON_DEF_H_
 
-constexpr int MAX_LENGTH = 1024;
-constexpr int HEAD_TOTAL_LEN = 32;
-constexpr int cst_Resp_MsgType = 1;
-constexpr int cst_Client_TimeOut_Sec = 500;
+const int MAX_LENGTH = 1024;
+const int HEAD_TOTAL_LEN = 32;
+const int cst_Resp_MsgType = 1;
+const int cst_Client_TimeOut_Sec = 500;
 
-constexpr unsigned int cst_nResp_Code_OK = 0;
-constexpr unsigned int cst_nResp_Code_RSETSVR = 2;
-constexpr unsigned int cst_nResp_Code_DEVID_ERR = 3;
+const unsigned int cst_nResp_Code_OK = 0;
+const unsigned int cst_nResp_Code_RSETSVR = 2;
+const unsigned int cst_nResp_Code_DEVID_ERR = 3;
 
-constexpr int MSG_DEV_REGISTER = 1001;
-constexpr int MSG_DEV_STATUS = 1002;
-constexpr int MSG_DEVCTRL_OPENLOCK = 2001;
-constexpr int MSG_APP_DEVCTRL_OPENLOCK = 4001;
+const int MSG_DEV_REGISTER = 1001;
+const int MSG_DEV_STATUS = 1002;
+const int MSG_DEVCTRL_OPENLOCK = 2001;
+const int MSG_APP_DEVCTRL_OPENLOCK = 4001;
+
+const unsigned int IV_BLOCK_SIZE = 16;
 
 #pragma pack(1)
 
@@ -69,6 +71,8 @@ struct KxDevRegPacketBody
 	unsigned int nDevSoftVersion;
 	unsigned int nMotorCtrlHWVer;
 	unsigned int mMotorCtrlSoftVer;
+	unsigned int nDashBoardHWVer;
+	unsigned int nDashBoardSoftVer;
 };
 
 struct KxMiniBatteryStatus
@@ -139,6 +143,7 @@ struct KxAppDevCtrlOpenLockPacketBody
 struct KxDevRegRespPacketBody
 {
 	unsigned int nDevSessionId;
+	unsigned char szIV[IV_BLOCK_SIZE];
 };
 
 #pragma pack()

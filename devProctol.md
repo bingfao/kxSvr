@@ -83,8 +83,8 @@ tcp短连接情况下设备连接服务端，发送的首条报文
 服务端根据具体情况回复，
 RespCode 
     - 0  正常
+            
             应答报文体
-            - SessinId   4Byte 设备需在后续请求报文中按此填入
     - 1  重定向其他服务端口
             应答报文体
             - svrIplen   1Byte 设备需重连的服务端Ip的字符串（以'\0'结束）长度
@@ -92,6 +92,10 @@ RespCode
             - svrPort    2Byte
     - 2  拒绝
     - 其他值  暂未定义的错误
+包体部分
+respcode为0时： 
+- SessinId   4Byte     设备需在后续请求报文中按此填入
+- IV         16Byte    AES用的IV向量
 
 
 

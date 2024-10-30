@@ -130,12 +130,15 @@ void KxBusinessLogicMgr::DevRegMsgCallBack(std::shared_ptr<KxDevSession> session
 #else
 	{
 
-		msgRespHead_base.nMsgBodyLen = 4;
+		unsigned char szPacketBody[20] = {0};
+		msgRespHead_base.nMsgBodyLen = sizeof(szPacketBody);
 		msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 		unsigned int nBodySessionId = session->GetSessionId();
 		auto nDevId = msgPacket.getDevId();
 		session->updateDevSessionId(nDevId, nBodySessionId);
-		session->SendRespPacket(msgRespHead_base, cst_nResp_Code_OK, (unsigned char *)&nBodySessionId, true);
+		*(unsigned int *)(szPacketBody) = nBodySessionId;
+		memcpy(szPacketBody + 4, session->getAESIvData(), IV_BLOCK_SIZE);
+		session->SendRespPacket(msgRespHead_base, cst_nResp_Code_OK, szPacketBody, true);
 	}
 #endif
 }
@@ -238,8 +241,8 @@ void KxBusinessLogicMgr::DevStatusMsgCallBack(std::shared_ptr<KxDevSession> sess
 		}
 		strsql = std::format("Insert into devStatus (devId,devType,devpos,mileage,bdriving,speed,status,bminibatexist,minibatteryid,miniibatterystatus,batteryexist,chargeflag,batteryid,batstid,stTime) values ({:d},{:d},'{},{}',{},{},{},'\\x{:0>8x}{:0>4x}',{},{},{},{},{},'{}',{},localtimestamp({:d}) );",
 							 msgPacket.getDevId(),
-							 pDevStatus->nDevType, pDevStatus->lngPos, pDevStatus->latPos,pDevStatus->mileage, pDevStatus->bDriving, pDevStatus->speed,
-							 *pStatusLow, *pStatusHigh, pDevStatus->bMiniBatExist, strbMiniBatId,strbMiniBatStatus, pDevStatus->batteryExist, pDevStatus->chargeFlag, pDevStatus->szBatteryId, batstid, t_c);
+							 pDevStatus->nDevType, pDevStatus->lngPos, pDevStatus->latPos, pDevStatus->mileage, pDevStatus->bDriving, pDevStatus->speed,
+							 *pStatusLow, *pStatusHigh, pDevStatus->bMiniBatExist, strbMiniBatId, strbMiniBatStatus, pDevStatus->batteryExist, pDevStatus->chargeFlag, pDevStatus->szBatteryId, batstid, t_c);
 		KX_LOG_FUNC_(strsql);
 		// std::cout << "sql is: " << strsql << std::endl;
 		tx.exec(strsql);

@@ -2,6 +2,10 @@
 #include "kxSvr.hpp"
 #include "KxLogicSys.hpp"
 #include "KxLogger.hpp"
+#include <openssl/rand.h>
+#ifdef USING_PQ_DB_
+#include <pqxx/pqxx>
+#endif
 
 #if defined(ASIO_ENABLE_HANDLER_TRACKING)
 #define use_awaitable \
@@ -64,6 +68,12 @@ void KxMsgPacket_Basic::getvecBuffer(std::vector<asio::const_buffer> &vec_buf)
 		vec_buf.push_back(asio::buffer(getMsgBodyBuf(), getBodyBufLen()));
 }
 
+KxDevSession::KxDevSession(asio::io_context &io_context, KxServer *server)
+	: m_io_context(io_context), m_socket(io_context), m_server(server), m_b_close(false), m_nSessionId(0)
+{
+	RAND_bytes(m_iv, IV_BLOCK_SIZE);
+}
+
 KxDevSession::~KxDevSession()
 {
 	try
@@ -76,7 +86,7 @@ KxDevSession::~KxDevSession()
 	catch (std::exception &exp)
 	{
 		// std::cout << "exception is " << exp.what() << std::endl;
-		KX_LOG_FUNC_(std::format("~KxSession destruct sessionId: 0x{:x} exception: {}", m_nSessionId,exp.what()));
+		KX_LOG_FUNC_(std::format("~KxSession destruct sessionId: 0x{:x} exception: {}", m_nSessionId, exp.what()));
 	}
 }
 
@@ -212,6 +222,58 @@ std::shared_ptr<KxDevSession> KxDevSession::getDevSession(unsigned int nDevId)
 void KxDevSession::updateDevSessionId(unsigned int nDevId, unsigned int nSessionId)
 {
 	m_server->updateDevSessionIdMap(nDevId, nSessionId);
+	// 应该从数据库中获取该DevId对应的 AES_KEY
+#ifdef USING_PQ_DB_
+	try
+	{
+		// pqxx::connection c{"host=localhost port=5432 dbname=kingxun user=postgres password=bingfao"};
+
+#ifdef WIN32
+		pqxx::connection c{"postgresql://postgres:gb6205966@localhost/postgres"};
+#else
+		pqxx::connection c{"postgresql://postgres:bingfao@localhost/kingxun"};
+#endif
+		pqxx::work tx{c};
+
+		// auto tm_now = std::localtime(&t_c);
+		// std::string strnow = std::format("{:d}-{:d}-{:d} {:d}:{:d}:{:d}", tm_now->tm_year + 1900, tm_now->tm_mon + 1, tm_now->tm_mday, tm_now->tm_hour, tm_now->tm_min, tm_now->tm_sec);
+
+		std::string strsql;
+
+		strsql = std::format("select c.\"commAESKey\" from  vehicles as v left join controlerboardinfo as c on v.controllerid = c.id Where v.devid = {:d} and v.devtype = 1;", nDevId);
+		KX_LOG_FUNC_(strsql);
+		// std::cout << "sql is: " << strsql << std::endl;
+		auto rdev = tx.exec(strsql);
+		if (rdev.size() > 0)
+		{
+			auto row_ = rdev[0];
+			auto aeskey = row_[0].as<pqxx::bytes>();
+			int i = 0;
+			for (auto &&byteval : aeskey)
+			{
+				if (i < IV_BLOCK_SIZE)
+					m_iv[i++] = std::to_integer<unsigned char>(byteval);
+				else
+					break;
+			}
+			std::stringstream ss;
+			ss << "0x" << std::hex;
+			for (int j = 0; j < IV_BLOCK_SIZE; ++j)
+			{
+				ss << std::setw(2) << std::setfill('0') << (short)m_iv[j]<<' ';
+			}
+			KX_LOG_FUNC_(ss.str());
+		}
+		tx.commit();
+	}
+	catch (std::exception const &e)
+	{
+		// std::cerr << "ERROR: " << e.what() << std::endl;
+		std::string strLog = "ERROR: ";
+		strLog += e.what();
+		KX_LOG_FUNC_(strLog);
+	}
+#endif
 }
 
 void KxDevSession::setLastTime(const std::time_t &tm_val)

@@ -162,12 +162,27 @@ bool checkMsgHeader(KxMsgHeader_Base *pmsgHeader_base, unsigned int nSessionId)
     return brt;
 }
 
-void onHandleSvrMsg(const char *pMsg, int nMsgLen, const SOCKET &sock)
+void onHandleSvrMsg(const char *pMsg, int nMsgLen, const SOCKET &sock, unsigned char *iv_data)
 {
     KxMsgHeader_Base *pmsgHeader_base = (KxMsgHeader_Base *)pMsg;
     std::cout << "Recv SvrMsg: " << pmsgHeader_base->nMsgId << ", seqNum: " << pmsgHeader_base->nSeqNum
               << ", bodyMsgLen: " << pmsgHeader_base->nMsgBodyLen << std::endl;
     // send RespCode
+    // 根据不同报文，解析，处理
+    switch (pmsgHeader_base->nMsgId)
+    {
+    case 2001:
+    case 2002:
+    case 2003:
+    case 2020:
+    case 2021:
+    case 2022:
+        {
+            // 都需要aes 解密获取原始报文，然后校验
+            std::cout<<"next to aes decrpt"<<std::endl;
+        }
+        break;
+    }
     KxMsgRespHeader *pResp = (KxMsgRespHeader *)pMsg;
     pResp->nTypeFlag = cst_Resp_MsgType;
     pResp->nCrc16 = crc16_ccitt((unsigned char *)pmsgHeader_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
@@ -176,7 +191,7 @@ void onHandleSvrMsg(const char *pMsg, int nMsgLen, const SOCKET &sock)
     send(sock, pMsg, sizeof(KxMsgRespHeader), 0);
 }
 
-void recvfunc(const SOCKET &sock, char *rv_buf, int nbufLen, unsigned int nDevId, unsigned int nSessionId)
+void recvfunc(const SOCKET &sock, char *rv_buf, int nbufLen, unsigned int nDevId, unsigned int nSessionId, unsigned char *iv_data)
 {
     for (;;)
     {
@@ -211,13 +226,13 @@ void recvfunc(const SOCKET &sock, char *rv_buf, int nbufLen, unsigned int nDevId
                                 if (iResult == pmsgHeader_base->nMsgBodyLen)
                                 {
                                     // 报文已经全部读出
-                                    onHandleSvrMsg(rv_buf, nPacketLen, sock);
+                                    onHandleSvrMsg(rv_buf, nPacketLen, sock, iv_data);
                                 }
                             }
                         }
                         else
                         {
-                            onHandleSvrMsg(rv_buf, nPacketLen, sock);
+                            onHandleSvrMsg(rv_buf, nPacketLen, sock, iv_data);
                         }
                     }
                     else
@@ -345,18 +360,21 @@ void thread_sendrecv(SOCKET &client_sock, unsigned int nDevId)
                             KxDevRegRespPacketBody *pRespBody = (KxDevRegRespPacketBody *)(recvbuf + sizeof(KxMsgRespHeader));
                             pMsgHeader->nSessionId = pRespBody->nDevSessionId;
 
+                            unsigned char iv_data[IV_BLOCK_SIZE];
+                            memcpy(iv_data, pRespBody->szIV, IV_BLOCK_SIZE);
+
                             // 发送状态信息
                             KxDevStatusPacketBody_Base *pDevStatus = (KxDevStatusPacketBody_Base *)(sendbuf + sizeof(KxMsgHeader));
                             pDevStatus->nDevType = 1;
                             pDevStatus->nProtocolFlag = 1;
                             pDevStatus->lngPos = 121.54409;
                             pDevStatus->latPos = 31.22114;
-                            pDevStatus->mileage = 32*nDevId;
+                            pDevStatus->mileage = 32 * nDevId;
                             // pDevStatus->bDriving = 1;
                             // pDevStatus->speed = 4.8*nDevId;
                             pDevStatus->bMiniBatExist = true;
                             strcpy_s(pDevStatus->szMiniBatteryId, "EEAD2002024991");
-                            pDevStatus->miniBatteryStatus.socPercent=82;
+                            pDevStatus->miniBatteryStatus.socPercent = 82;
                             pDevStatus->miniBatteryStatus.voltage = 1320;
                             pDevStatus->seriesCount = 1;
                             pDevStatus->batteryExist = true;
@@ -368,8 +386,8 @@ void thread_sendrecv(SOCKET &client_sock, unsigned int nDevId)
 
                             pDevStatus->batteryStatus.current = 0;
 
-                            //std::time_t tm_res = std::time(nullptr);
-                            //auto thread_id = std::this_thread::get_id();
+                            // std::time_t tm_res = std::time(nullptr);
+                            // auto thread_id = std::this_thread::get_id();
 
                             // int *pStatusLow = (int *)(&pDevStatus->Status);
                             // // int *pStatusHigh = pStatusLow + 1;
@@ -380,7 +398,7 @@ void thread_sendrecv(SOCKET &client_sock, unsigned int nDevId)
                             pDevStatus->Status.brakeStatus = 0x33;
                             // *pStatusHigh = *(int *)(&thread_id);
                             // std::cout << "devId: " << nDevId << ", devStatus is: 0x" << std::hex << *pStatusLow << ' '
-                            // //  << *pStatusHigh 
+                            // //  << *pStatusHigh
                             //  << std::dec << std::endl;
 
                             pMsgHeader->nMsgId = 1002;
@@ -408,7 +426,7 @@ void thread_sendrecv(SOCKET &client_sock, unsigned int nDevId)
                                         std::cout << "devId: " << nDevId << ", thread [" << std::this_thread::get_id() << "] Reced Resp Code: " << pResp->nRespCode << " , MsgId : " << pResp->nMsgId << std::endl;
                                     }
                                     // 继续等待接收数据
-                                    recvfunc(client_sock, recvbuf, recvbuflen, pMsgHeader->nDevId, pMsgHeader->nSessionId);
+                                    recvfunc(client_sock, recvbuf, recvbuflen, pMsgHeader->nDevId, pMsgHeader->nSessionId, iv_data);
                                 }
                             }
                         }

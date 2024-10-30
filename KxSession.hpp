@@ -6,6 +6,8 @@
 #include <asio.hpp>
 #include <queue>
 #include "KxMsgNode.hpp"
+#include "KxMsgDef.h"
+
 
 class KxServer;
 
@@ -27,12 +29,7 @@ public:
 class KxDevSession : public std::enable_shared_from_this<KxDevSession>
 {
 public:
-	KxDevSession(asio::io_context &io_context, KxServer *server)
-		: m_io_context(io_context), m_socket(io_context), m_server(server), m_b_close(false)
-		, m_nSessionId(0)
-	{
-		//
-	}
+	KxDevSession(asio::io_context &io_context, KxServer *server);
 	~KxDevSession();
 
 	asio::ip::tcp::socket &GetSocket()
@@ -67,6 +64,9 @@ public:
 		return m_tm_last;
 	}
 	void checkTimeOut(const std::time_t& tm_val);
+	unsigned char* getAESIvData(){
+		return m_iv;
+	}
 
 private:
 	void HandleMsgWrited(const asio::error_code &error, std::shared_ptr<KxDevSession> shared_self);
@@ -82,6 +82,7 @@ private:
 
 	asio::io_context &m_io_context;
 	std::time_t m_tm_last;
+	unsigned char m_iv[IV_BLOCK_SIZE];
 };
 
 #endif //_KX_SESSION_HPP_
