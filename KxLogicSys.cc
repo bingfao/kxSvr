@@ -2,10 +2,14 @@
 #include "KxMsgNode.hpp"
 #include "KxSession.hpp"
 #include "KxLogger.hpp"
+#include "aeshelper.hpp"
 
 #ifdef USING_PQ_DB_
 #include <pqxx/pqxx>
 #endif
+
+const unsigned char default_aes_key[] = {0x51, 0x5D, 0x3D, 0x22, 0x97, 0x47, 0xC8, 0xFD, 0x9F, 0x30, 0x41, 0xD0, 0x8C, 0x0A, 0xE9, 0x10};
+const unsigned char default_aes_iv[] = {0x13, 0xF1, 0xDA, 0xC8, 0x8B, 0xB6, 0xE2, 0xCD, 0x9B, 0xEA, 0xE0, 0x63, 0x8F, 0x3F, 0x53, 0xAB};
 
 KxBusinessLogicMgr::KxBusinessLogicMgr() : _b_stop(false)
 {
@@ -95,6 +99,51 @@ void KxBusinessLogicMgr::RegisterCallBacks()
 												   std::placeholders::_1, std::placeholders::_2);
 	m_map_FunCallbacks[MSG_APP_DEVCTRL_OPENLOCK] = std::bind(&KxBusinessLogicMgr::AppDevCtrlMsgCallBack, this,
 															 std::placeholders::_1, std::placeholders::_2);
+	m_map_FunCallbacks[MSG_WEBSVR_REGISTER] = std::bind(&KxBusinessLogicMgr::WebSvrRegMsgCallBack, this,
+														std::placeholders::_1, std::placeholders::_2);
+}
+
+void KxBusinessLogicMgr::WebSvrRegMsgCallBack(std::shared_ptr<KxDevSession> session, const KxMsgPacket_Basic &msgPacket)
+{
+	auto msgHeader = msgPacket.getMsgHeader();
+	auto pMsgBody = msgPacket.getMsgBodyBuf();
+	// 解密处理
+	unsigned char originMsgBody[256] = {0};
+	unsigned int nMsgBufLen = sizeof(originMsgBody);
+	std::cout << "before call aes_128_CBC_decrypt" << std::endl;
+	bool brt = aes_128_CBC_decrypt(default_aes_key, default_aes_iv, pMsgBody, msgHeader.nMsgBodyLen, originMsgBody, nMsgBufLen);
+	if (brt)
+	{
+		// 把时间和host信息都打印出来
+		char *pHost = (char *)(originMsgBody + 8);
+		std::cout << "origin msg host : " << pHost << std::endl;
+		KxMsgHeader_Base msgRespHead_base;
+		msgRespHead_base.nMsgId = msgHeader.nMsgId;
+		msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
+		msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
+		unsigned char originRespData[AES_BLOCK_SIZE + 8] = {0};
+		const std::chrono::time_point<std::chrono::system_clock> tp_now =
+			std::chrono::system_clock::now();
+		const std::time_t t_c = std::chrono::system_clock::to_time_t(tp_now);
+		Rand_IV_Data(originRespData);
+		memcpy(originRespData + 16, &t_c, sizeof(std::time_t));
+		unsigned char msgBody[256] = {0};
+		unsigned int nBufLen = sizeof(msgBody);
+		brt = aes_128_CBC_encrypt(default_aes_key, default_aes_iv, originRespData, sizeof(originRespData), msgBody, nBufLen);
+		if (brt)
+		{
+			unsigned int *pData = (unsigned int *)(msgBody + nBufLen);
+			*pData = nBufLen;
+			nBufLen += sizeof(unsigned int);
+			unsigned short nCrc16 = crc16_ccitt(originRespData, sizeof(originRespData));
+			*(unsigned short *)(msgBody + nBufLen) = nCrc16;
+			nBufLen += sizeof(unsigned short);
+			msgRespHead_base.nMsgBodyLen = nBufLen;
+			msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+			session->SendRespPacket(msgRespHead_base, cst_nResp_Code_OK, msgBody, true);
+		}
+		session->setLastTime(t_c);
+	}
 }
 
 void KxBusinessLogicMgr::DevRegMsgCallBack(std::shared_ptr<KxDevSession> session, const KxMsgPacket_Basic &msgPacket)

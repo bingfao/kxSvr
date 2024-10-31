@@ -1,6 +1,8 @@
 #include "kxSvr.hpp"
 #include <mutex>
 #include <iostream>
+#include <openssl/evp.h>
+
 #include "KxSession.hpp"
 #include "KxAsioServicePool.hpp"
 #include "KxLogger.hpp"
@@ -211,6 +213,7 @@ int main(int argc, const char *argv[])
         auto &pool = KxAsioIOServicePool::GetInstance();
         asio::io_context io_context;
         asio::signal_set signals(io_context, SIGINT,SIGTERM); 
+        EVP_add_cipher(EVP_aes_128_cbc());
 
 #ifdef USING_DIFFERENT_PORT
         KxServer s(io_context, 10085);

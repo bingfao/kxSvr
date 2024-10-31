@@ -403,11 +403,10 @@ HttpResponse采用json形式返回
 
 ### 包体部分 
 **注意：包体部分是AES之后的数据**
-- svrIp
-- svrHost
 - timestamp    8Byte
+- svrHost      
 
-以上数据用初始密钥加密  AES-256-CBC, KEY,IV 均用初始值
+以上数据用初始密钥加密  AES-128-CBC, KEY,IV 均用初始值
 
 ### 应答包
 - RespCode
@@ -417,8 +416,8 @@ HttpResponse采用json形式返回
 - 加密部分报文
   - newIV        16Byte     
   - timestamp    8Byte
-- nDataLen  //原始数据的长度
-- crc16     //原始数据的crc16
+- nDataLen   4Byte    //原始数据的长度      
+- crc16      2Byte    //原始数据的crc16    
 
 webSvr收到后，后续报文，使用该IV来做AES计算
 

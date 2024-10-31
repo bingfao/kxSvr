@@ -7,6 +7,8 @@
 #include <thread>
 #include <vector>
 #include "KxMsgDef.h"
+#include "aeshelper.hpp"
+#include <openssl/evp.h>
 
 #pragma comment(lib, "Ws2_32.lib")
 #pragma comment(lib, "Mswsock.lib")
@@ -57,6 +59,9 @@ static const unsigned short crc16tab[256] = {
     0x7c26, 0x6c07, 0x5c64, 0x4c45, 0x3ca2, 0x2c83, 0x1ce0, 0x0cc1,
     0xef1f, 0xff3e, 0xcf5d, 0xdf7c, 0xaf9b, 0xbfba, 0x8fd9, 0x9ff8,
     0x6e17, 0x7e36, 0x4e55, 0x5e74, 0x2e93, 0x3eb2, 0x0ed1, 0x1ef0};
+
+const unsigned char default_aes_key[] = {0x51, 0x5D, 0x3D, 0x22, 0x97, 0x47, 0xC8, 0xFD, 0x9F, 0x30, 0x41, 0xD0, 0x8C, 0x0A, 0xE9, 0x10};
+const unsigned char default_aes_iv[] = {0x13, 0xF1, 0xDA, 0xC8, 0x8B, 0xB6, 0xE2, 0xCD, 0x9B, 0xEA, 0xE0, 0x63, 0x8F, 0x3F, 0x53, 0xAB};
 
 unsigned short crc16_ccitt(const unsigned char *buf, int len)
 {
@@ -185,49 +190,97 @@ void thread_sendrecv(SOCKET &client_sock)
     }
     else
     {
-        // Send an DevReg
         unsigned char sendbuf[DEFAULT_BUFLEN] = {0};
         unsigned short nSeqNum = 0;
         KxMsgHeader *pMsgHeader = (KxMsgHeader *)sendbuf;
-        pMsgHeader->nMsgId = MSG_APP_DEVCTRL_OPENLOCK;
-        pMsgHeader->nSeqNum = nSeqNum;
-        pMsgHeader->nMsgBodyLen = sizeof(KxAppDevCtrlOpenLockPacketBody);
-        pMsgHeader->nCrc16 = crc16_ccitt((unsigned char *)pMsgHeader, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+        // 先发送 9001
+        pMsgHeader->nMsgId = MSG_WEBSVR_REGISTER;
+        pMsgHeader->nSeqNum = nSeqNum++;
+
         pMsgHeader->nDevId = 0xEEFF;
-        KxAppDevCtrlOpenLockPacketBody *pBody = (KxAppDevCtrlOpenLockPacketBody *)(sendbuf + sizeof(KxMsgHeader));
-        pBody->nDevId = 1001;
-        int nPacketLen = sizeof(KxMsgHeader) + sizeof(KxAppDevCtrlOpenLockPacketBody);
-        iResult = send(client_sock, (const char *)sendbuf, nPacketLen, 0);
-        if (iResult == SOCKET_ERROR)
+        unsigned char databuf[128] = {0};
+        const std::chrono::time_point<std::chrono::system_clock> tp_now =
+            std::chrono::system_clock::now();
+        const std::time_t t_c = std::chrono::system_clock::to_time_t(tp_now);
+        memcpy(databuf, &t_c, sizeof(std::time_t));
+        const char szHost[] = "kingxun.site";
+        memcpy(databuf + 8, szHost, sizeof(szHost));
+        int ndataLen = 8 + sizeof(szHost);
+        unsigned char *pBodyRegOut = sendbuf + sizeof(KxMsgHeader);
+        unsigned int nOutBufLen = 128;
+        bool brt = aes_128_CBC_encrypt(default_aes_key, default_aes_iv, databuf, ndataLen, pBodyRegOut, nOutBufLen);
+        if (brt)
         {
-            ++at_errsend;
-        }
-        else
-        {
-            iResult = recv(client_sock, recvbuf, recvbuflen, 0);
-            if (iResult > 0)
+            pMsgHeader->nMsgBodyLen = nOutBufLen;
+            pMsgHeader->nCrc16 = crc16_ccitt((unsigned char *)pMsgHeader, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+            // 加密成功
+            int nRegPacketLen = sizeof(KxMsgHeader) + nOutBufLen;
+            iResult = send(client_sock, (const char *)sendbuf, nRegPacketLen, 0);
+            if (iResult == SOCKET_ERROR)
             {
-                // 解析应答报文
-                if (iResult >= sizeof(KxMsgRespHeader))
-                {
-                    KxMsgRespHeader *pResp = (KxMsgRespHeader *)recvbuf;
-                    if (pResp->nSeqNum == pMsgHeader->nSeqNum && pResp->nMsgId == pMsgHeader->nMsgId)
-                    {
-                        std::cout << "thread [" << std::this_thread::get_id() << "] Reced Resp Code: " << pResp->nRespCode << " , MsgId : " << pResp->nMsgId << std::endl;
-                        // 继续等待接收数据
-                        recvfunc(client_sock, recvbuf, recvbuflen, pMsgHeader->nDevId, pMsgHeader->nSessionId);
-                    }
-                }
-            }
-            else if (iResult == 0)
-            {
-                //++at_errrecv;
-                std::cout << "thread [" << std::this_thread::get_id() << "] Connection closed" << std::endl;
+                ++at_errsend;
             }
             else
             {
-                std::cout << "thread [" << std::this_thread::get_id() << "] recv failed with error: " << WSAGetLastError() << std::endl;
-                ++at_errrecv;
+                iResult = recv(client_sock, recvbuf, recvbuflen, 0);
+                if (iResult > 0)
+                {
+                    // 解析应答报文
+                    if (iResult >= sizeof(KxMsgRespHeader))
+                    {
+                        KxMsgRespHeader *pResp = (KxMsgRespHeader *)recvbuf;
+                        if (pResp->nSeqNum == pMsgHeader->nSeqNum && pResp->nMsgId == pMsgHeader->nMsgId)
+                        {
+                            std::cout << "thread [" << std::this_thread::get_id() << "] Reced Resp Code: " << pResp->nRespCode << " , MsgId : " << pResp->nMsgId << std::endl;
+// 再发送 4001
+#ifdef TRY_40001
+                            pMsgHeader->nMsgId = MSG_APP_DEVCTRL_OPENLOCK;
+                            pMsgHeader->nSeqNum = nSeqNum++;
+                            pMsgHeader->nMsgBodyLen = sizeof(KxAppDevCtrlOpenLockPacketBody);
+                            pMsgHeader->nCrc16 = crc16_ccitt((unsigned char *)pMsgHeader, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+                            pMsgHeader->nDevId = 0xEEFF;
+
+                            KxAppDevCtrlOpenLockPacketBody *pBody = (KxAppDevCtrlOpenLockPacketBody *)(sendbuf + sizeof(KxMsgHeader));
+                            pBody->nDevId = 10001;
+                            int nPacketLen = sizeof(KxMsgHeader) + sizeof(KxAppDevCtrlOpenLockPacketBody);
+
+                            iResult = send(client_sock, (const char *)sendbuf, nPacketLen, 0);
+                            if (iResult == SOCKET_ERROR)
+                            {
+                                ++at_errsend;
+                            }
+                            else
+                            {
+                                iResult = recv(client_sock, recvbuf, recvbuflen, 0);
+                                if (iResult > 0)
+                                {
+                                    // 解析应答报文
+                                    if (iResult >= sizeof(KxMsgRespHeader))
+                                    {
+                                        KxMsgRespHeader *pResp = (KxMsgRespHeader *)recvbuf;
+                                        if (pResp->nSeqNum == pMsgHeader->nSeqNum && pResp->nMsgId == pMsgHeader->nMsgId)
+                                        {
+                                            std::cout << "thread [" << std::this_thread::get_id() << "] Reced Resp Code: " << pResp->nRespCode << " , MsgId : " << pResp->nMsgId << std::endl;
+                                            // 继续等待接收数据
+                                            recvfunc(client_sock, recvbuf, recvbuflen, pMsgHeader->nDevId, pMsgHeader->nSessionId);
+                                        }
+                                    }
+                                }
+                            }
+#endif
+                        }
+                    }
+                }
+                if (iResult == 0)
+                {
+                    //++at_errrecv;
+                    std::cout << "thread [" << std::this_thread::get_id() << "] Connection closed" << std::endl;
+                }
+                else if (iResult < 0)
+                {
+                    std::cout << "thread [" << std::this_thread::get_id() << "] recv failed with error: " << WSAGetLastError() << std::endl;
+                    ++at_errrecv;
+                }
             }
         }
 
@@ -267,6 +320,7 @@ int main(int argc, const char **argv)
         std::cout << "WSAStartup failed with error: " << iResult << std::endl;
         return 1;
     }
+    EVP_add_cipher(EVP_aes_128_cbc());
 
     const int nClientCount = 3;
     std::vector<std::thread> vec_thread;
@@ -277,10 +331,10 @@ int main(int argc, const char **argv)
     // {
     //     for (auto i = 0; i < nClientCount; ++i)
     //     {
-            sock = socket(AF_INET, SOCK_STREAM, IPPROTO::IPPROTO_TCP);
-            vec_Sock.push_back(sock);
-            std::thread th_(thread_sendrecv, std::ref(vec_Sock.back()));
-            vec_thread.push_back(std::move(th_));
+    sock = socket(AF_INET, SOCK_STREAM, IPPROTO::IPPROTO_TCP);
+    vec_Sock.push_back(sock);
+    std::thread th_(thread_sendrecv, std::ref(vec_Sock.back()));
+    vec_thread.push_back(std::move(th_));
     //     }
     // }
     std::cout << "input q to exit" << std::endl;
@@ -310,4 +364,4 @@ int main(int argc, const char **argv)
     return 0;
 }
 
-// cl wxDemo.cpp /EHsc /std:c++20
+// cl wxDemo.cpp aeshelper.cc /EHsc /std:c++20 -I "C:\\Program Files\\OpenSSL\\include"  D:\openssl\libcrypto.lib

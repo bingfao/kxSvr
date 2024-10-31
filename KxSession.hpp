@@ -65,8 +65,9 @@ public:
 	}
 	void checkTimeOut(const std::time_t& tm_val);
 	unsigned char* getAESIvData(){
-		return m_iv;
+		return m_aes_iv;
 	}
+
 
 private:
 	void HandleMsgWrited(const asio::error_code &error, std::shared_ptr<KxDevSession> shared_self);
@@ -82,7 +83,8 @@ private:
 
 	asio::io_context &m_io_context;
 	std::time_t m_tm_last;
-	unsigned char m_iv[IV_BLOCK_SIZE];
+	unsigned char m_aes_key[IV_BLOCK_SIZE];
+	unsigned char m_aes_iv[IV_BLOCK_SIZE];
 };
 
 #endif //_KX_SESSION_HPP_

@@ -17,6 +17,8 @@ const unsigned int cst_nResp_Code_DEVID_ERR = 3;
 const int MSG_DEV_REGISTER = 1001;
 const int MSG_DEV_STATUS = 1002;
 const int MSG_DEVCTRL_OPENLOCK = 2001;
+
+const int MSG_WEBSVR_REGISTER = 9001;
 const int MSG_APP_DEVCTRL_OPENLOCK = 4001;
 
 const unsigned int IV_BLOCK_SIZE = 16;

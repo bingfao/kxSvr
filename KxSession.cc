@@ -2,7 +2,7 @@
 #include "kxSvr.hpp"
 #include "KxLogicSys.hpp"
 #include "KxLogger.hpp"
-#include <openssl/rand.h>
+#include "aeshelper.hpp"
 #ifdef USING_PQ_DB_
 #include <pqxx/pqxx>
 #endif
@@ -71,7 +71,7 @@ void KxMsgPacket_Basic::getvecBuffer(std::vector<asio::const_buffer> &vec_buf)
 KxDevSession::KxDevSession(asio::io_context &io_context, KxServer *server)
 	: m_io_context(io_context), m_socket(io_context), m_server(server), m_b_close(false), m_nSessionId(0)
 {
-	RAND_bytes(m_iv, IV_BLOCK_SIZE);
+	Rand_IV_Data(m_aes_iv);
 }
 
 KxDevSession::~KxDevSession()
@@ -252,7 +252,7 @@ void KxDevSession::updateDevSessionId(unsigned int nDevId, unsigned int nSession
 			for (auto &&byteval : aeskey)
 			{
 				if (i < IV_BLOCK_SIZE)
-					m_iv[i++] = std::to_integer<unsigned char>(byteval);
+					m_aes_key[i++] = std::to_integer<unsigned char>(byteval);
 				else
 					break;
 			}
@@ -260,7 +260,7 @@ void KxDevSession::updateDevSessionId(unsigned int nDevId, unsigned int nSession
 			ss << "0x" << std::hex;
 			for (int j = 0; j < IV_BLOCK_SIZE; ++j)
 			{
-				ss << std::setw(2) << std::setfill('0') << (short)m_iv[j]<<' ';
+				ss << std::setw(2) << std::setfill('0') << (short)m_aes_key[j]<<' ';
 			}
 			KX_LOG_FUNC_(ss.str());
 		}

@@ -36,9 +36,10 @@
                 "/EHsc",
                 "/nologo",
                 "/Fe${fileDirname}\\KxSvr.exe",
-                "./*.cc",
+                "*.cc",
                 "pqxx.lib",
-                "libpq.lib"
+                "libpq.lib",
+                "D:\\openssl\\libcrypto.lib"
             ],
             "options": {
                 "cwd": "${fileDirname}"
