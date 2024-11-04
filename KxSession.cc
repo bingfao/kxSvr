@@ -71,7 +71,6 @@ void KxMsgPacket_Basic::getvecBuffer(std::vector<asio::const_buffer> &vec_buf)
 KxDevSession::KxDevSession(asio::io_context &io_context, KxServer *server)
 	: m_io_context(io_context), m_socket(io_context), m_server(server), m_b_close(false), m_nSessionId(0)
 {
-	Rand_IV_Data(m_aes_iv);
 }
 
 KxDevSession::~KxDevSession()
@@ -203,14 +202,39 @@ bool KxDevSession::checkMsgHeader(const KxMsgHeader_Base &msgHeader_base, unsign
 	unsigned short nCrc16 = crc16_ccitt((unsigned char *)&msgHeader_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 	bool bCrcOk = msgHeader_base.nCrc16 == nCrc16;
 	brt = bCrcOk;
+	if (msgHeader_base.nTypeFlag == 0)
+	{
+		if (msgHeader_base.nMsgId != MSG_DEV_REGISTER && msgHeader_base.nMsgId < MSG_APP_DEVCTRL_OPENLOCK)
+		{
+			if (pExtData[1] != m_nSessionId)
+			{
+				brt = false;
+			}
+		}
+	}
+	return brt;
+}
 
-	// if (msgHeader_base.nTypeFlag == 0 && msgHeader_base.nMsgId != MSG_DEV_REGISTER)
-	// {
-	// 	if (pExtData[1] != m_nSessionId)
-	// 	{
-	// 		brt = false;
-	// 	}
-	// }
+bool KxDevSession::checkAESPacketData(const unsigned char *pBody, unsigned int nBodyLen, unsigned char *&pOrigin, unsigned int &nOriginDataLen)
+{
+	bool brt(false);
+	// 先解密
+	unsigned int nCount = nBodyLen / AES_IV_BLOCK_SIZE;
+	unsigned int nLeft = nBodyLen % AES_IV_BLOCK_SIZE;
+	if (nLeft)
+		++nCount;
+	nOriginDataLen = nCount * AES_IV_BLOCK_SIZE;
+	pOrigin = new unsigned char[nOriginDataLen];
+	if (AES_decrypt(pBody, nBodyLen - 6, pOrigin, nOriginDataLen))
+	{
+		unsigned short nCrc16 = crc16_ccitt((unsigned char *)pOrigin, nOriginDataLen);
+		unsigned int *pDataLen = (unsigned int *)(pBody + nBodyLen - 6);
+		unsigned short *pCrc = (unsigned short *)(pBody + nBodyLen - 2);
+		if (*pCrc == nCrc16 && nOriginDataLen == *pDataLen)
+		{
+			brt = true;
+		}
+	}
 	return brt;
 }
 
@@ -219,10 +243,35 @@ std::shared_ptr<KxDevSession> KxDevSession::getDevSession(unsigned int nDevId)
 	return m_server->getDevSession(nDevId);
 }
 
-void KxDevSession::updateDevSessionId(unsigned int nDevId, unsigned int nSessionId)
+void KxDevSession::RandIVData()
 {
-	m_server->updateDevSessionIdMap(nDevId, nSessionId);
-	// 应该从数据库中获取该DevId对应的 AES_KEY
+	Rand_IV_Data(m_aes_iv);
+}
+
+void KxDevSession::setAES_Iv(const unsigned char *p)
+{
+	memcpy(m_aes_iv, p, AES_IV_BLOCK_SIZE);
+}
+
+void KxDevSession::setAES_Key(const unsigned char *p)
+{
+	memcpy(m_aes_key, p, AES_IV_BLOCK_SIZE);
+}
+
+bool KxDevSession::AES_encrypt(const unsigned char *pIn, unsigned int nInBufLen,
+							   unsigned char *pOut, unsigned int &nOutBufLen)
+{
+	return aes_128_CBC_encrypt(m_aes_key, m_aes_iv, pIn, nInBufLen, pOut, nOutBufLen);
+}
+
+bool KxDevSession::AES_decrypt(const unsigned char *pData, unsigned int nDataLen,
+							   unsigned char *pOut, unsigned int &nOutDataLen)
+{
+	return aes_128_CBC_decrypt(m_aes_key, m_aes_iv, pData, nDataLen, pOut, nOutDataLen);
+}
+
+void KxDevSession::getDevAESKeyData()
+{
 #ifdef USING_PQ_DB_
 	try
 	{
@@ -240,7 +289,7 @@ void KxDevSession::updateDevSessionId(unsigned int nDevId, unsigned int nSession
 
 		std::string strsql;
 
-		strsql = std::format("select c.\"commAESKey\" from  vehicles as v left join controlerboardinfo as c on v.controllerid = c.id Where v.devid = {:d} and v.devtype = 1;", nDevId);
+		strsql = std::format("select c.\"commAESKey\" from  vehicles as v left join controlerboardinfo as c on v.controllerid = c.id Where v.devid = {:d} and v.devtype = 1;", m_nDevId);
 		KX_LOG_FUNC_(strsql);
 		// std::cout << "sql is: " << strsql << std::endl;
 		auto rdev = tx.exec(strsql);
@@ -251,16 +300,16 @@ void KxDevSession::updateDevSessionId(unsigned int nDevId, unsigned int nSession
 			int i = 0;
 			for (auto &&byteval : aeskey)
 			{
-				if (i < IV_BLOCK_SIZE)
+				if (i < AES_IV_BLOCK_SIZE)
 					m_aes_key[i++] = std::to_integer<unsigned char>(byteval);
 				else
 					break;
 			}
 			std::stringstream ss;
 			ss << "0x" << std::hex;
-			for (int j = 0; j < IV_BLOCK_SIZE; ++j)
+			for (int j = 0; j < AES_IV_BLOCK_SIZE; ++j)
 			{
-				ss << std::setw(2) << std::setfill('0') << (short)m_aes_key[j]<<' ';
+				ss << std::setw(2) << std::setfill('0') << (short)m_aes_key[j] << ' ';
 			}
 			KX_LOG_FUNC_(ss.str());
 		}
@@ -274,6 +323,13 @@ void KxDevSession::updateDevSessionId(unsigned int nDevId, unsigned int nSession
 		KX_LOG_FUNC_(strLog);
 	}
 #endif
+}
+
+void KxDevSession::updateDevSessionId(unsigned int nDevId, unsigned int nSessionId)
+{
+	m_nDevId = nDevId;
+	m_server->updateDevSessionIdMap(nDevId, nSessionId);
+	// 应该从数据库中获取该DevId对应的 AES_KEY
 }
 
 void KxDevSession::setLastTime(const std::time_t &tm_val)

@@ -34,7 +34,7 @@ dev出厂时设定的svrIp/Port，如后台规则调整，DevReg应答时返回d
 
 ### 包体
 由包头中MsgBodyLen指定的报文长度，具体含义根据报文MsgId进行单独说明，针对加密的数据报文，MsgBodyLen是加密后的报文数据长度
-CryptFlag 如为1，则包体内容是做过AES ECB处理的
+CryptFlag 如为1，则包体内容是做过AES 处理的
 
 ## 应答包
 
@@ -49,7 +49,7 @@ CryptFlag 如为1，则包体内容是做过AES ECB处理的
 - RespCode      4Byte
 ### 包体
 由包头中MsgBodyLen指定的报文长度，具体含义根据报文MsgId进行单独说明
-CryptFlag 如为1，则包体内容是做过AES ECB处理的，
+CryptFlag 如为1，则包体内容是做过AES 处理的，
 
 **应答包必须与请求包的SeqNum一致**
 

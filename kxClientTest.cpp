@@ -360,8 +360,8 @@ void thread_sendrecv(SOCKET &client_sock, unsigned int nDevId)
                             KxDevRegRespPacketBody *pRespBody = (KxDevRegRespPacketBody *)(recvbuf + sizeof(KxMsgRespHeader));
                             pMsgHeader->nSessionId = pRespBody->nDevSessionId;
 
-                            unsigned char iv_data[IV_BLOCK_SIZE];
-                            memcpy(iv_data, pRespBody->szIV, IV_BLOCK_SIZE);
+                            unsigned char iv_data[AES_IV_BLOCK_SIZE];
+                            memcpy(iv_data, pRespBody->szIV, AES_IV_BLOCK_SIZE);
 
                             // 发送状态信息
                             KxDevStatusPacketBody_Base *pDevStatus = (KxDevStatusPacketBody_Base *)(sendbuf + sizeof(KxMsgHeader));

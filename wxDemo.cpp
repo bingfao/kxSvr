@@ -16,6 +16,8 @@
 
 #define DEFAULT_BUFLEN 1024
 
+#define TRY_40001
+
 sockaddr_in g_clientService;
 
 std::atomic_int at_unconn;
@@ -196,7 +198,7 @@ void thread_sendrecv(SOCKET &client_sock)
         // 先发送 9001
         pMsgHeader->nMsgId = MSG_WEBSVR_REGISTER;
         pMsgHeader->nSeqNum = nSeqNum++;
-
+        pMsgHeader->nCryptFlag = 1;
         pMsgHeader->nDevId = 0xEEFF;
         unsigned char databuf[128] = {0};
         const std::chrono::time_point<std::chrono::system_clock> tp_now =
@@ -211,10 +213,15 @@ void thread_sendrecv(SOCKET &client_sock)
         bool brt = aes_128_CBC_encrypt(default_aes_key, default_aes_iv, databuf, ndataLen, pBodyRegOut, nOutBufLen);
         if (brt)
         {
-            pMsgHeader->nMsgBodyLen = nOutBufLen;
+            pMsgHeader->nMsgBodyLen = nOutBufLen + 6;
             pMsgHeader->nCrc16 = crc16_ccitt((unsigned char *)pMsgHeader, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
             // 加密成功
-            int nRegPacketLen = sizeof(KxMsgHeader) + nOutBufLen;
+            int nRegPacketLen = sizeof(KxMsgHeader) + pMsgHeader->nMsgBodyLen;
+            unsigned int *pDataLen = (unsigned int *)(pBodyRegOut + nOutBufLen);
+            *pDataLen = ndataLen;
+            unsigned short *pCrc16 = (unsigned short *)(pBodyRegOut + nOutBufLen + 4);
+            *pCrc16 = crc16_ccitt((unsigned char *)databuf, ndataLen);
+
             iResult = send(client_sock, (const char *)sendbuf, nRegPacketLen, 0);
             if (iResult == SOCKET_ERROR)
             {
@@ -229,45 +236,75 @@ void thread_sendrecv(SOCKET &client_sock)
                     if (iResult >= sizeof(KxMsgRespHeader))
                     {
                         KxMsgRespHeader *pResp = (KxMsgRespHeader *)recvbuf;
-                        if (pResp->nSeqNum == pMsgHeader->nSeqNum && pResp->nMsgId == pMsgHeader->nMsgId)
+                        if (iResult == pResp->nMsgBodyLen + sizeof(KxMsgRespHeader))
                         {
-                            std::cout << "thread [" << std::this_thread::get_id() << "] Reced Resp Code: " << pResp->nRespCode << " , MsgId : " << pResp->nMsgId << std::endl;
-// 再发送 4001
-#ifdef TRY_40001
-                            pMsgHeader->nMsgId = MSG_APP_DEVCTRL_OPENLOCK;
-                            pMsgHeader->nSeqNum = nSeqNum++;
-                            pMsgHeader->nMsgBodyLen = sizeof(KxAppDevCtrlOpenLockPacketBody);
-                            pMsgHeader->nCrc16 = crc16_ccitt((unsigned char *)pMsgHeader, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
-                            pMsgHeader->nDevId = 0xEEFF;
-
-                            KxAppDevCtrlOpenLockPacketBody *pBody = (KxAppDevCtrlOpenLockPacketBody *)(sendbuf + sizeof(KxMsgHeader));
-                            pBody->nDevId = 10001;
-                            int nPacketLen = sizeof(KxMsgHeader) + sizeof(KxAppDevCtrlOpenLockPacketBody);
-
-                            iResult = send(client_sock, (const char *)sendbuf, nPacketLen, 0);
-                            if (iResult == SOCKET_ERROR)
+                            if (pResp->nSeqNum == pMsgHeader->nSeqNum && pResp->nMsgId == pMsgHeader->nMsgId)
                             {
-                                ++at_errsend;
-                            }
-                            else
-                            {
-                                iResult = recv(client_sock, recvbuf, recvbuflen, 0);
-                                if (iResult > 0)
+                                std::cout << "thread [" << std::this_thread::get_id() << "] Reced Resp Code: " << pResp->nRespCode << " , MsgId : " << pResp->nMsgId << std::endl;
+                                // 需要解析出收到的IV数据
+                                unsigned char *pBody = (unsigned char *)(recvbuf + sizeof(KxMsgRespHeader));
+                                unsigned char szBodyOrigin[128] = {0};
+                                nOutBufLen = sizeof(szBodyOrigin);
+                                ndataLen = pResp->nMsgBodyLen - 6;
+                                brt = aes_128_CBC_decrypt(default_aes_key, default_aes_iv, pBody, ndataLen, szBodyOrigin, nOutBufLen);
+                                if (brt)
                                 {
-                                    // 解析应答报文
-                                    if (iResult >= sizeof(KxMsgRespHeader))
+                                    // 再发送 4001
+#ifdef TRY_40001
+                                    pMsgHeader->nMsgId = MSG_APP_DEVCTRL_OPENLOCK;
+                                    pMsgHeader->nCryptFlag = 1;
+                                    pMsgHeader->nSeqNum = nSeqNum++;
+
+                                    pMsgHeader->nCrc16 = crc16_ccitt((unsigned char *)pMsgHeader, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+                                    pMsgHeader->nDevId = 0xEEFF;
+
+                                    KxAppDevCtrlOpenLock_OriginMsg openlock_msg;
+                                    openlock_msg.nDevId = 10001;
+                                    openlock_msg.devtype = 1;
+                                    openlock_msg.nUsrId = 1;
+                                    openlock_msg.svrTime = t_c;
+                                    openlock_msg.nAlowTime = 1440;
+                                    openlock_msg.nLowestSocP = 20;
+                                    openlock_msg.nFarthestDist = 50000;
+                                    unsigned char *pBodyMsg = (sendbuf + sizeof(KxMsgHeader));
+                                    // 加密
+                                    nOutBufLen = 128;
+                                    bool brt = aes_128_CBC_encrypt(default_aes_key, szBodyOrigin, (unsigned char *)&openlock_msg, sizeof(openlock_msg), pBodyMsg, nOutBufLen);
+                                    if (brt)
                                     {
-                                        KxMsgRespHeader *pResp = (KxMsgRespHeader *)recvbuf;
-                                        if (pResp->nSeqNum == pMsgHeader->nSeqNum && pResp->nMsgId == pMsgHeader->nMsgId)
+                                        pMsgHeader->nMsgBodyLen = nOutBufLen + 6;
+                                        unsigned int *pDataLen = (unsigned int *)(pBodyMsg + nOutBufLen);
+                                        *pDataLen = sizeof(openlock_msg);
+                                        unsigned short *pCrc16 = (unsigned short *)(pBodyMsg + nOutBufLen + 4);
+                                        *pCrc16 = crc16_ccitt((unsigned char *)&openlock_msg, sizeof(openlock_msg));
+                                        int nPacketLen = sizeof(KxMsgHeader) + pMsgHeader->nMsgBodyLen;
+                                        iResult = send(client_sock, (const char *)sendbuf, nPacketLen, 0);
+                                        if (iResult == SOCKET_ERROR)
                                         {
-                                            std::cout << "thread [" << std::this_thread::get_id() << "] Reced Resp Code: " << pResp->nRespCode << " , MsgId : " << pResp->nMsgId << std::endl;
-                                            // 继续等待接收数据
-                                            recvfunc(client_sock, recvbuf, recvbuflen, pMsgHeader->nDevId, pMsgHeader->nSessionId);
+                                            ++at_errsend;
+                                        }
+                                        else
+                                        {
+                                            iResult = recv(client_sock, recvbuf, recvbuflen, 0);
+                                            if (iResult > 0)
+                                            {
+                                                // 解析应答报文
+                                                if (iResult >= sizeof(KxMsgRespHeader))
+                                                {
+                                                    KxMsgRespHeader *pResp = (KxMsgRespHeader *)recvbuf;
+                                                    if (pResp->nSeqNum == pMsgHeader->nSeqNum && pResp->nMsgId == pMsgHeader->nMsgId)
+                                                    {
+                                                        std::cout << "thread [" << std::this_thread::get_id() << "] Reced Resp Code: " << pResp->nRespCode << " , MsgId : " << pResp->nMsgId << std::endl;
+                                                        // 继续等待接收数据
+                                                        recvfunc(client_sock, recvbuf, recvbuflen, pMsgHeader->nDevId, pMsgHeader->nSessionId);
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
+#endif
                                 }
                             }
-#endif
                         }
                     }
                 }

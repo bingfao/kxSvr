@@ -396,6 +396,7 @@ HttpResponse采用json形式返回
 # WebSvr <--->  svrInstance
 
 此部分报文格式参见devProctol的包头和包体部分
+devId 填 0
 
 ## 连接验证
 - MsgId 9001
@@ -403,10 +404,13 @@ HttpResponse采用json形式返回
 
 ### 包体部分 
 **注意：包体部分是AES之后的数据**
-- timestamp    8Byte
-- svrHost      
+- 加密部分报文           用初始密钥加密  AES-128-CBC, KEY,IV 均用初始值
+  - timestamp    8Byte
+  - svrHost      
+- nDataLen   4Byte    //原始数据的长度      
+- crc16      2Byte    //原始数据的crc16    
 
-以上数据用初始密钥加密  AES-128-CBC, KEY,IV 均用初始值
+
 
 ### 应答包
 - RespCode

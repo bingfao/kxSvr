@@ -21,7 +21,7 @@ const int MSG_DEVCTRL_OPENLOCK = 2001;
 const int MSG_WEBSVR_REGISTER = 9001;
 const int MSG_APP_DEVCTRL_OPENLOCK = 4001;
 
-const unsigned int IV_BLOCK_SIZE = 16;
+const unsigned int AES_IV_BLOCK_SIZE = 16;
 
 #pragma pack(1)
 
@@ -134,9 +134,12 @@ struct KxDevStatusPacketBody_Base
 	KxDev_BatterySerieData_ seriesData;
 };
 
-struct KxAppDevCtrlOpenLockPacketBody
+struct KxAppDevCtrlOpenLock_OriginMsg
 {
 	unsigned int nDevId;
+	unsigned char devtype;
+	int64_t  svrTime;
+	int32_t  nUsrId;
 	unsigned short nAlowTime;
 	unsigned char nLowestSocP;
 	unsigned int nFarthestDist;
@@ -145,7 +148,7 @@ struct KxAppDevCtrlOpenLockPacketBody
 struct KxDevRegRespPacketBody
 {
 	unsigned int nDevSessionId;
-	unsigned char szIV[IV_BLOCK_SIZE];
+	unsigned char szIV[AES_IV_BLOCK_SIZE];
 };
 
 #pragma pack()
