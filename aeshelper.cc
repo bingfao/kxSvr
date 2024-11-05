@@ -1,6 +1,6 @@
 #include <iostream>
 #include "aeshelper.hpp"
-
+#include <memory>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 

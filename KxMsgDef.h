@@ -48,13 +48,13 @@ public:
 	}
 };
 
-class KxMsgHeader : public KxMsgHeader_Base
+class KxMsgReqHeader : public KxMsgHeader_Base
 {
 public:
 	unsigned int nDevId;
 	unsigned int nSessionId; // 由Svr 分配的sessionId
 
-	KxMsgHeader()
+	KxMsgReqHeader()
 		: KxMsgHeader_Base()
 	{
 		nTypeFlag = 0;
@@ -77,10 +77,7 @@ struct KxDevRegPacketBody
 	unsigned int nDashBoardSoftVer;
 };
 
-struct KxMiniBatteryStatus
-{
-	//
-};
+
 
 struct KxDev_Status_
 {

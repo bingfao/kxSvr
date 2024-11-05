@@ -5,6 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "(Windows) Launch active file",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${fileDirname}\\${fileBasenameNoExtension}.exe",
+            "args": ["127.0.0.1","10086"],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "console": "externalTerminal"
+        }
+        ,
+        {
             "name": "(Windows) Launch kxsvr",
             "type": "cppvsdbg",
             "request": "launch",
@@ -15,17 +27,5 @@
             "environment": [],
             "console": "externalTerminal"
         }
-        // ,
-        // {
-        //     "name": "(Windows) Launch",
-        //     "type": "cppvsdbg",
-        //     "request": "launch",
-        //     "program": "${fileDirname}\\${fileBasenameNoExtension}.exe",
-        //     "args": [],
-        //     "stopAtEntry": false,
-        //     "cwd": "${fileDirname}",
-        //     "environment": [],
-        //     "console": "externalTerminal"
-        // }
     ]
 }

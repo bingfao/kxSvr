@@ -6,8 +6,8 @@
 #include <iostream>
 #include <thread>
 #include <vector>
-#include "KxMsgDef.h"
-#include "aeshelper.hpp"
+#include "../KxMsgDef.h"
+#include "../aeshelper.hpp"
 #include <openssl/evp.h>
 
 #pragma comment(lib, "Ws2_32.lib")
@@ -194,7 +194,7 @@ void thread_sendrecv(SOCKET &client_sock)
     {
         unsigned char sendbuf[DEFAULT_BUFLEN] = {0};
         unsigned short nSeqNum = 0;
-        KxMsgHeader *pMsgHeader = (KxMsgHeader *)sendbuf;
+        KxMsgReqHeader *pMsgHeader = (KxMsgReqHeader *)sendbuf;
         // 先发送 9001
         pMsgHeader->nMsgId = MSG_WEBSVR_REGISTER;
         pMsgHeader->nSeqNum = nSeqNum++;
@@ -208,7 +208,7 @@ void thread_sendrecv(SOCKET &client_sock)
         const char szHost[] = "kingxun.site";
         memcpy(databuf + 8, szHost, sizeof(szHost));
         int ndataLen = 8 + sizeof(szHost);
-        unsigned char *pBodyRegOut = sendbuf + sizeof(KxMsgHeader);
+        unsigned char *pBodyRegOut = sendbuf + sizeof(KxMsgReqHeader);
         unsigned int nOutBufLen = 128;
         bool brt = aes_128_CBC_encrypt(default_aes_key, default_aes_iv, databuf, ndataLen, pBodyRegOut, nOutBufLen);
         if (brt)
@@ -216,7 +216,7 @@ void thread_sendrecv(SOCKET &client_sock)
             pMsgHeader->nMsgBodyLen = nOutBufLen + 6;
             pMsgHeader->nCrc16 = crc16_ccitt((unsigned char *)pMsgHeader, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
             // 加密成功
-            int nRegPacketLen = sizeof(KxMsgHeader) + pMsgHeader->nMsgBodyLen;
+            int nRegPacketLen = sizeof(KxMsgReqHeader) + pMsgHeader->nMsgBodyLen;
             unsigned int *pDataLen = (unsigned int *)(pBodyRegOut + nOutBufLen);
             *pDataLen = ndataLen;
             unsigned short *pCrc16 = (unsigned short *)(pBodyRegOut + nOutBufLen + 4);
@@ -266,7 +266,7 @@ void thread_sendrecv(SOCKET &client_sock)
                                     openlock_msg.nAlowTime = 1440;
                                     openlock_msg.nLowestSocP = 20;
                                     openlock_msg.nFarthestDist = 50000;
-                                    unsigned char *pBodyMsg = (sendbuf + sizeof(KxMsgHeader));
+                                    unsigned char *pBodyMsg = (sendbuf + sizeof(KxMsgReqHeader));
                                     // 加密
                                     nOutBufLen = 128;
                                     bool brt = aes_128_CBC_encrypt(default_aes_key, szBodyOrigin, (unsigned char *)&openlock_msg, sizeof(openlock_msg), pBodyMsg, nOutBufLen);
@@ -277,7 +277,7 @@ void thread_sendrecv(SOCKET &client_sock)
                                         *pDataLen = sizeof(openlock_msg);
                                         unsigned short *pCrc16 = (unsigned short *)(pBodyMsg + nOutBufLen + 4);
                                         *pCrc16 = crc16_ccitt((unsigned char *)&openlock_msg, sizeof(openlock_msg));
-                                        int nPacketLen = sizeof(KxMsgHeader) + pMsgHeader->nMsgBodyLen;
+                                        int nPacketLen = sizeof(KxMsgReqHeader) + pMsgHeader->nMsgBodyLen;
                                         iResult = send(client_sock, (const char *)sendbuf, nPacketLen, 0);
                                         if (iResult == SOCKET_ERROR)
                                         {
@@ -401,4 +401,4 @@ int main(int argc, const char **argv)
     return 0;
 }
 
-// cl wxDemo.cpp aeshelper.cc /EHsc /std:c++20 -I "C:\\Program Files\\OpenSSL\\include"  D:\openssl\libcrypto.lib
+// cl wxDemo.cpp ../aeshelper.cc /EHsc /std:c++20  /wd4819 -I "C:\\Program Files\\OpenSSL\\include"  D:\openssl\libcrypto.lib

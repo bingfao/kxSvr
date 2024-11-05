@@ -8,6 +8,7 @@
                 "/Zi",
                 "/EHsc",
                 "/nologo",
+                "/wd4819",
                 "/FeKxClientTest.exe",
                 "./KxClientTest.cpp"
             ],
@@ -37,6 +38,7 @@
                 "/nologo",
                 "/Fe${fileDirname}\\KxSvr.exe",
                 "*.cc",
+                "/wd4819",
                 "pqxx.lib",
                 "libpq.lib",
                 "D:\\openssl\\libcrypto.lib"
@@ -55,13 +57,18 @@
             "label": "C/C++: cl.exe build active file",
             "command": "cl.exe",
             "args": [
+                "-D_WIN32_WINNT=0x0601",
                 "-I\"C:\\Program Files\\OpenSSL\\include\"",
+                "-ID:\\workspace\\asio\\asio\\include"
                 "/Zi",
                 "/EHsc",
                 "/nologo",
                 "/std:c++20",
                 "/Fe${fileDirname}\\${fileBasenameNoExtension}.exe",
                 "${file}",
+                "KxMsgPacket.cc",
+                "aeshelper.cc",
+                "/wd4819",
                 "D:\\openssl\\libcrypto.lib"
             ],
             "options": {

@@ -1,114 +1,18 @@
 #pragma once
 
+#ifndef KX_MSG_NODE_HPP_
+#define KX_MSG_NODE_HPP_
+
+
 #include <iostream>
-#include <asio.hpp>
-#include "KxMsgDef.h"
+
+#include "KxMsgPacket.hpp"
 
 
 #define KX_USING_DEV_SESSION
 
 #ifdef KX_USING_DEV_SESSION
 
-unsigned short crc16_ccitt(const unsigned char *buf, int len);
-
-
-#pragma pack(1)
-
-class KxMsgPacket_Basic
-{
-public:
-	KxMsgPacket_Basic()
-		: m_pMsgBodyBuf(nullptr), m_bNeedDeleteBuf(false)
-	{
-	}
-	KxMsgPacket_Basic(const KxMsgHeader_Base &msgH_base, unsigned int *pHeadExtData, unsigned char *pBody, bool bNeedDelBuf)
-	{
-		KxMsgPacket_Basic();
-		std::memcpy(&m_msgHeader, &msgH_base, sizeof(KxMsgHeader_Base));
-		if (pHeadExtData)
-		{
-			nRespCode_u_DevId = pHeadExtData[0];
-			if (msgH_base.nTypeFlag != cst_Resp_MsgType)
-			{
-				nSessionId = pHeadExtData[1];
-			}
-		}
-		m_bNeedDeleteBuf = bNeedDelBuf;
-		if (m_bNeedDeleteBuf)
-		{
-			m_pMsgBodyBuf = new unsigned char[m_msgHeader.nMsgBodyLen];
-			if (pBody)
-				memcpy(m_pMsgBodyBuf, pBody, m_msgHeader.nMsgBodyLen);
-		}
-		else
-		{
-			if (pBody)
-				m_pMsgBodyBuf = pBody;
-		}
-	}
-	~KxMsgPacket_Basic()
-	{
-		if (m_bNeedDeleteBuf && m_pMsgBodyBuf)
-		{
-			delete[] m_pMsgBodyBuf;
-			m_pMsgBodyBuf = nullptr;
-		}
-	}
-	const KxMsgHeader_Base &getMsgHeader() const
-	{
-		return m_msgHeader;
-	}
-	// KxMsgHeader_Base   getMsgHeader_() const
-	// {
-	// 	return m_msgHeader;
-	// }
-	void SetBodyBuf(unsigned char *pBuf, bool bNeedDelete)
-	{
-		m_pMsgBodyBuf = pBuf;
-		m_bNeedDeleteBuf = bNeedDelete;
-	}
-	unsigned char *getMsgBodyBuf() const
-	{
-		return m_pMsgBodyBuf;
-	}
-	unsigned int getBodyBufLen() const
-	{
-		return m_msgHeader.nMsgBodyLen;
-	}
-
-	void getvecBuffer(std::vector<asio::const_buffer> &);
-
-	unsigned int getRespCode() const
-	{
-		return nRespCode_u_DevId;
-	}
-	unsigned int getDevId() const
-	{
-		return nRespCode_u_DevId;
-	}
-	bool isPair(const KxMsgPacket_Basic &msg)
-	{
-		bool brt(false);
-		auto msg_h = msg.getMsgHeader();
-		if (m_msgHeader.nSeqNum == msg_h.nSeqNum && m_msgHeader.nMsgId == msg_h.nMsgId)
-		{
-			if (m_msgHeader.nTypeFlag == 0 && msg_h.nTypeFlag == cst_Resp_MsgType)
-			{
-				brt = true;
-			}
-		}
-		return brt;
-	}
-
-protected:
-	KxMsgHeader_Base m_msgHeader;
-	unsigned int nRespCode_u_DevId; // 此处仅为占用内存布局，具体取值，依赖mTypeFlag
-	unsigned int nSessionId;
-	unsigned char *m_pMsgBodyBuf;
-	bool m_bNeedDeleteBuf;
-};
-
-#pragma pack()
 
 class KxDevSession;
 
@@ -207,3 +111,6 @@ private:
 };
 
 #endif // KX_USING_DEV_SESSION
+
+
+#endif  //KX_MSG_NODE_HPP_

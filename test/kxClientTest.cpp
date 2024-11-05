@@ -10,7 +10,7 @@
 #include <iostream>
 #include <thread>
 #include <vector>
-#include "KxMsgDef.h"
+#include "../KxMsgDef.h"
 
 #ifdef WIN32
 #pragma comment(lib, "Ws2_32.lib")
@@ -293,7 +293,7 @@ void thread_sendrecv(SOCKET &client_sock, unsigned int nDevId)
         // Send an DevReg
         unsigned char sendbuf[DEFAULT_BUFLEN] = {0};
         unsigned short nSeqNum = 0;
-        KxMsgHeader *pMsgHeader = (KxMsgHeader *)sendbuf;
+        KxMsgReqHeader *pMsgHeader = (KxMsgReqHeader *)sendbuf;
         pMsgHeader->nMsgId = MSG_DEV_REGISTER;
         pMsgHeader->nSeqNum = nSeqNum;
         pMsgHeader->nMsgBodyLen = sizeof(KxDevRegPacketBody);
@@ -301,7 +301,7 @@ void thread_sendrecv(SOCKET &client_sock, unsigned int nDevId)
         // auto thread_id = std::this_thread::get_id();
         // pMsgHeader->nDevId = *(unsigned int *)(&thread_id);
         pMsgHeader->nDevId = nDevId;
-        int nPacketLen = sizeof(KxMsgHeader) + sizeof(KxDevRegPacketBody);
+        int nPacketLen = sizeof(KxMsgReqHeader) + sizeof(KxDevRegPacketBody);
         iResult = send(client_sock, (const char *)sendbuf, nPacketLen, 0);
         if (iResult == SOCKET_ERROR)
         {
@@ -364,7 +364,7 @@ void thread_sendrecv(SOCKET &client_sock, unsigned int nDevId)
                             memcpy(iv_data, pRespBody->szIV, AES_IV_BLOCK_SIZE);
 
                             // 发送状态信息
-                            KxDevStatusPacketBody_Base *pDevStatus = (KxDevStatusPacketBody_Base *)(sendbuf + sizeof(KxMsgHeader));
+                            KxDevStatusPacketBody_Base *pDevStatus = (KxDevStatusPacketBody_Base *)(sendbuf + sizeof(KxMsgReqHeader));
                             pDevStatus->nDevType = 1;
                             pDevStatus->nProtocolFlag = 1;
                             pDevStatus->lngPos = 121.54409;
@@ -407,7 +407,7 @@ void thread_sendrecv(SOCKET &client_sock, unsigned int nDevId)
                             pMsgHeader->nMsgBodyLen = sizeof(KxDevStatusPacketBody_Base);
                             pMsgHeader->nCrc16 = crc16_ccitt((unsigned char *)pMsgHeader, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 
-                            nPacketLen = sizeof(KxMsgHeader) + sizeof(KxDevStatusPacketBody_Base);
+                            nPacketLen = sizeof(KxMsgReqHeader) + sizeof(KxDevStatusPacketBody_Base);
                             iResult = send(client_sock, (const char *)sendbuf, nPacketLen, 0);
                             if (iResult == SOCKET_ERROR)
                             {
