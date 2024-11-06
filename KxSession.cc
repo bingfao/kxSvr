@@ -14,7 +14,6 @@
 
 constexpr int MAX_SENDQUE = 100;
 
-
 KxDevSession::KxDevSession(asio::io_context &io_context, KxServer *server)
 	: m_io_context(io_context), m_socket(io_context), m_server(server), m_b_close(false), m_nSessionId(0)
 {
@@ -166,17 +165,28 @@ bool KxDevSession::checkAESPacketData(const unsigned char *pBody, unsigned int n
 {
 	bool brt(false);
 	// 先解密
-	unsigned int nCount = nBodyLen / AES_IV_BLOCK_SIZE;
-	unsigned int nLeft = nBodyLen % AES_IV_BLOCK_SIZE;
+	unsigned int nAesDataLen = nBodyLen - 6;
+    unsigned int nCount = nAesDataLen / AES_IV_BLOCK_SIZE;
+    unsigned int nLeft = nAesDataLen % AES_IV_BLOCK_SIZE;
 	if (nLeft)
 		++nCount;
 	nOriginDataLen = nCount * AES_IV_BLOCK_SIZE;
 	pOrigin = new unsigned char[nOriginDataLen];
-	if (AES_decrypt(pBody, nBodyLen - 6, pOrigin, nOriginDataLen))
+	if (AES_decrypt(pBody, nAesDataLen, pOrigin, nOriginDataLen))
 	{
+		std::stringstream ssout;
+		ssout<<"AES_decrypt :" << std::hex;
+		for (int i = 0; i < nOriginDataLen; ++i)
+		{
+			// std::cout<<std::hex<<ste::setw(2)<<std::fill('0')<<pBodyBuf[i];
+			ssout << std::setw(2) << std::setfill('0') << (short)pOrigin[i] << ' ';
+		}
+		//ssout << std::dec << std::endl;
+		KX_LOG_FUNC_(ssout.str());
+
 		unsigned short nCrc16 = crc16_ccitt((unsigned char *)pOrigin, nOriginDataLen);
-		unsigned int *pDataLen = (unsigned int *)(pBody + nBodyLen - 6);
-		unsigned short *pCrc = (unsigned short *)(pBody + nBodyLen - 2);
+		unsigned int *pDataLen = (unsigned int *)(pBody + nAesDataLen);
+		unsigned short *pCrc = (unsigned short *)(pBody + nAesDataLen + 4);
 		if (*pCrc == nCrc16 && nOriginDataLen == *pDataLen)
 		{
 			brt = true;

@@ -3,16 +3,14 @@
 #ifndef KX_MSG_NODE_HPP_
 #define KX_MSG_NODE_HPP_
 
-
 #include <iostream>
 
 #include "KxMsgPacket.hpp"
-
+//#include "KxLogger.hpp"
 
 #define KX_USING_DEV_SESSION
 
 #ifdef KX_USING_DEV_SESSION
-
 
 class KxDevSession;
 
@@ -21,11 +19,16 @@ class KxBussinessLogicNode
 	friend class KxBusinessLogicMgr;
 	friend class KxDevSession;
 	friend class KxServer;
+
 public:
 	KxBussinessLogicNode(std::shared_ptr<KxDevSession> session, std::shared_ptr<KxMsgPacket_Basic> recvPacket)
 		: m_session(session), m_recvedPacket(recvPacket)
 	{
 	}
+	// ~KxBussinessLogicNode()
+	// {
+	// 	KX_LOG_FUNC_("KxBussinessLogicNode Destructor");
+	// }
 
 private:
 	std::shared_ptr<KxDevSession> m_session;
@@ -112,5 +115,4 @@ private:
 
 #endif // KX_USING_DEV_SESSION
 
-
-#endif  //KX_MSG_NODE_HPP_
+#endif // KX_MSG_NODE_HPP_

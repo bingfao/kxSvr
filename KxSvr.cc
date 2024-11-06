@@ -158,6 +158,30 @@ void KxServer::StartCheckTimeOutSessions()
     // std::cout << "StartCheckTimeOutSessions" << std::endl;
 }
 
+void KxServer::CheckTimeOutSvrMsgWaitItem(const std::time_t &tm_now)
+{
+    std::unique_lock<std::mutex> svrlst_lock(m_svrMsgList_mutex);
+    for (auto msgNode : m_svrMsgWaitResp_list)
+    {
+        if (tm_now - msgNode->m_timestamp > cst_Svr_Wait_DevMsgResp_Sec)
+        {
+            // 回复超时
+            auto msgPacket = msgNode->m_logicNode->m_recvedPacket;
+            KxMsgHeader_Base msgRespHead_base;
+            auto msgHeader = msgPacket->getMsgHeader();
+            msgRespHead_base.nMsgId = msgHeader.nMsgId;
+            msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
+            msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
+            msgRespHead_base.nMsgBodyLen = 0;
+            msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+            auto session = msgNode->m_logicNode->m_session;
+            session->SendRespPacket(msgRespHead_base,cst_nResp_Code_SEND_DEV_ERR, nullptr, false);
+        }
+    }
+    m_svrMsgWaitResp_list.remove_if([&tm_now](std::shared_ptr<KxMsgLogicNode> item)
+                                    { return tm_now - item->m_timestamp >= cst_Svr_Wait_DevMsgResp_Sec; });
+}
+
 void KxServer::CheckTimeOutSessions(const std::error_code & /*e*/,
                                     asio::steady_timer *t)
 {
@@ -175,6 +199,7 @@ void KxServer::CheckTimeOutSessions(const std::error_code & /*e*/,
     {
         g_kx_log.OnCheckDayChanged(tm_now->tm_mday);
     }
+    CheckTimeOutSvrMsgWaitItem(t_c);
     static int nTimerCount = 0;
     if (++nTimerCount == 5)
     {
@@ -204,15 +229,13 @@ void KxServer::ClearSession(unsigned int nSessionId)
 // std::condition_variable cond_quit;
 // std::mutex mutex_quit;
 
-
-
 int main(int argc, const char *argv[])
 {
     try
     {
         auto &pool = KxAsioIOServicePool::GetInstance();
         asio::io_context io_context;
-        asio::signal_set signals(io_context, SIGINT,SIGTERM); 
+        asio::signal_set signals(io_context, SIGINT, SIGTERM);
         EVP_add_cipher(EVP_aes_128_cbc());
 
 #ifdef USING_DIFFERENT_PORT
@@ -245,4 +268,4 @@ int main(int argc, const char *argv[])
 //  g++ ./*.cc -o ./kxsvr -std=c++20 -I../../asio/asio/include -DUSING_PQ_DB_ -lpqxx -lpq -lcrypto
 
 //  cl /EHsc ./*.cc /std:c++20 -I D:\workspace\asio\asio\include -D_WIN32_WINNT=0x0601 /wd4819 /Fe:kxsvr.exe
-//  cl /EHsc ./*.cc /std:c++20 -I D:\workspace\asio\asio\include -D_WIN32_WINNT=0x0601 /wd4819 /Fe:kxsvr.exe  -DUSING_PQ_DB_ -ID:\\workspace\\libpqxx\\include -ID:\\workspace\\libpqxx\\build\\include -I "C:\\Program Files\\OpenSSL\\include"  D:\openssl\libcrypto.lib pqxx.lib libpq.lib  
+//  cl /EHsc ./*.cc /std:c++20 -I D:\workspace\asio\asio\include -D_WIN32_WINNT=0x0601 /wd4819 /Fe:kxsvr.exe  -DUSING_PQ_DB_ -ID:\\workspace\\libpqxx\\include -ID:\\workspace\\libpqxx\\build\\include -I "C:\\Program Files\\OpenSSL\\include"  D:\openssl\libcrypto.lib pqxx.lib libpq.lib

@@ -121,7 +121,8 @@ void KxBusinessLogicMgr::WebSvrRegMsgCallBack(std::shared_ptr<KxDevSession> sess
 	{
 		// 把时间和host信息都打印出来
 		char *pHost = (char *)(originMsgBody + 8);
-		std::cout << "origin msg host : " << pHost << std::endl;
+		std::stringstream ssout;
+		ssout << "origin msg host : " << pHost << std::endl;
 		if (std::strcmp(cst_szHost, pHost) == 0)
 		{
 			KxMsgHeader_Base msgRespHead_base;
@@ -141,7 +142,7 @@ void KxBusinessLogicMgr::WebSvrRegMsgCallBack(std::shared_ptr<KxDevSession> sess
 			{
 
 				unsigned int *pData = (unsigned int *)(msgBody + nBufLen);
-				*pData = nBufLen;
+				*pData = sizeof(originRespData);
 				nBufLen += sizeof(unsigned int);
 				unsigned short nCrc16 = crc16_ccitt(originRespData, sizeof(originRespData));
 				*(unsigned short *)(msgBody + nBufLen) = nCrc16;
@@ -150,6 +151,13 @@ void KxBusinessLogicMgr::WebSvrRegMsgCallBack(std::shared_ptr<KxDevSession> sess
 				msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 				session->SendRespPacket(msgRespHead_base, cst_nResp_Code_OK, msgBody, true);
 				session->setAES_Iv(originRespData);
+				ssout << "Set New IV Data: " << std::hex;
+				for (int i = 0; i < AES_IV_BLOCK_SIZE; ++i)
+				{
+					ssout << std::setw(2) << std::setfill('0') << (short)originRespData[i] << ' ';
+				}
+				//ssout << std::dec << std::endl;
+				KX_LOG_FUNC_(ssout.str());
 			}
 			session->setLastTime(t_c);
 		}
@@ -366,7 +374,7 @@ void KxBusinessLogicMgr::AppDevCtrlMsgCallBack(std::shared_ptr<KxDevSession> ses
 			msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
 			msgRespHead_base.nMsgBodyLen = 0;
 			msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
-			session->SendRespPacket(msgRespHead_base, cst_nResp_Code_DEVID_ERR, nullptr, false);
+			session->SendRespPacket(msgRespHead_base, cst_nResp_Code_DEV_OFFLINE, nullptr, false);
 		}
 		delete[] originMsgBody;
 		originMsgBody = nullptr;

@@ -9,10 +9,13 @@ const int MAX_LENGTH = 1024;
 const int HEAD_TOTAL_LEN = 32;
 const int cst_Resp_MsgType = 1;
 const int cst_Client_TimeOut_Sec = 500;
+const int cst_Svr_Wait_DevMsgResp_Sec = 30;
 
 const unsigned int cst_nResp_Code_OK = 0;
 const unsigned int cst_nResp_Code_RSETSVR = 2;
-const unsigned int cst_nResp_Code_DEVID_ERR = 3;
+const unsigned int cst_nResp_Code_DEV_OFFLINE = 3;
+const unsigned int cst_nResp_Code_DEVID_ERR = 4;
+const unsigned int cst_nResp_Code_SEND_DEV_ERR = 5;
 
 const int MSG_DEV_REGISTER = 1001;
 const int MSG_DEV_STATUS = 1002;

@@ -28,6 +28,7 @@ private:
 	void StartCheckTimeOutSessions();
 	void CheckTimeOutSessions(const std::error_code & /*e*/,
                 asio::steady_timer *t);
+    void CheckTimeOutSvrMsgWaitItem(const std::time_t& );
 	asio::io_context &m_io_context;
 	unsigned int m_nsessionCount;
 	short m_nPort;

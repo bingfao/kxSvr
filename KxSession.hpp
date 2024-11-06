@@ -7,6 +7,7 @@
 #include <queue>
 #include "KxMsgNode.hpp"
 #include "KxMsgDef.h"
+#include "KxLogger.hpp"
 
 class KxServer;
 
@@ -17,12 +18,16 @@ class KxMsgLogicNode
 public:
 	KxMsgLogicNode(std::shared_ptr<KxMsgPacket_Basic> msgPacket, std::shared_ptr<KxBussinessLogicNode> logicNode = nullptr)
 		: m_sendPacket(msgPacket), m_logicNode(logicNode)
+		, m_timestamp(std::time(nullptr))
 	{
 	}
-
+    ~KxMsgLogicNode() {
+		KX_LOG_FUNC_("KxMsgLogicNode Destructor");
+	}
 public:
 	std::shared_ptr<KxMsgPacket_Basic> m_sendPacket;
 	std::shared_ptr<KxBussinessLogicNode> m_logicNode;
+	std::time_t m_timestamp;
 };
 
 class KxDevSession : public std::enable_shared_from_this<KxDevSession>
