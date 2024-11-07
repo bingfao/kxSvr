@@ -85,11 +85,11 @@ RespCode
     - 0  正常
             
             应答报文体
-    - 1  重定向其他服务端口
+    1  重定向其他服务端口   暂时不实现
             应答报文体
             - svrIplen   1Byte 设备需重连的服务端Ip的字符串（以'\0'结束）长度
             - svrIp      nByte utf-8编码
-            - svrPort    2Byte
+            - svrPort    2Byte 
     - 2  拒绝
     - 其他值  暂未定义的错误
 包体部分

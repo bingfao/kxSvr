@@ -418,12 +418,33 @@ devId 填 0
     - 1   拒绝
 **注意：包体部分是AES之后的数据**
 - 加密部分报文
-  - newIV        16Byte     
+  - sessionId    4Byte
+  - newIV        16Byte 
   - timestamp    8Byte
 - nDataLen   4Byte    //原始数据的长度      
 - crc16      2Byte    //原始数据的crc16    
 
 webSvr收到后，后续报文，使用该IV来做AES计算
+
+
+## 服务器心跳通信包
+
+- MsgId 9002
+- CryptFlag 0    
+
+### 包体部分 
+  - timestamp    8Byte
+  - svrHost      32Byte 当前仅允许  kingxun.site 
+
+
+
+### 应答包
+- RespCode
+    - 0   Ok
+- totalDevCount        4Byte     
+
+
+
 
 # 设备控制命令
 

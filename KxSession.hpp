@@ -89,6 +89,10 @@ public:
 	bool AES_decrypt(const unsigned char *pData, unsigned int nDataLen,
 					 unsigned char *pOut, unsigned int &nOutDataLen);
 
+    void setWebSvr()
+	{
+		m_bWebSvr = true;
+	}
 private:
 	void HandleMsgWrited(const asio::error_code &error, std::shared_ptr<KxDevSession> shared_self);
 	void HandleRespWrited(const asio::error_code &error, std::shared_ptr<KxDevSession> shared_self);
@@ -106,6 +110,7 @@ private:
 	std::time_t m_tm_last;
 	unsigned char m_aes_key[AES_IV_BLOCK_SIZE];
 	unsigned char m_aes_iv[AES_IV_BLOCK_SIZE];
+	bool m_bWebSvr;
 };
 
 #endif //_KX_SESSION_HPP_

@@ -5,19 +5,17 @@
 
 #include <iostream>
 #include <deque>
+#include <list>
 #include <asio.hpp>
 #include "KxMsgPacket.hpp"
 #include "KxMsgDef.h"
 #include "aeshelper.hpp"
 
-
 const int cst_basic_recv_packetbody_buf_len = 2048;
 
 using asio::ip::tcp;
 
-typedef std::deque<std::shared_ptr<KxMsgPacket_Basic>> chat_message_queue;
-
-
+typedef std::deque<std::shared_ptr<KxMsgPacket_Basic>> msgPacket_queue;
 
 class KxClient
 {
@@ -44,10 +42,12 @@ public:
     asio::post(io_context_,
                [this, msg]()
                {
-                 bool write_in_progress = !write_msgs_.empty();
-                 write_msgs_.push_back(msg);
+                 std::unique_lock<std::mutex> lock(m_mutex_tosend);
+                 bool write_in_progress = !toSend_msgs_.empty();
+                 toSend_msgs_.push_back(msg);
                  if (!write_in_progress)
                  {
+                   lock.unlock();
                    do_write();
                  }
                });
@@ -62,6 +62,13 @@ public:
   unsigned int getSessionId()
   {
     return m_nSessionId;
+  }
+  void setDevId(unsigned int id)
+  {
+    m_nDevId = id;
+  }
+  unsigned int getDevId(){
+    return m_nDevId;
   }
 
   void setAES_Key(const unsigned char *p)
@@ -198,17 +205,28 @@ private:
   void do_write()
   {
     std::vector<asio::const_buffer> vec_buf;
-    auto msgnode = write_msgs_.front();
+    std::unique_lock<std::mutex> lock(m_mutex_tosend);
+    auto msgnode = toSend_msgs_.front();
     msgnode->getvecBuffer(vec_buf);
+    lock.unlock();
     asio::async_write(socket_,
                       vec_buf,
-                      [this](std::error_code ec, std::size_t /*length*/)
+                      [this, msgnode](std::error_code ec, std::size_t /*length*/)
                       {
                         if (!ec)
                         {
-                          write_msgs_.pop_front();
-                          if (!write_msgs_.empty())
+                          if (!msgnode->isRespMsg())
                           {
+                            std::unique_lock<std::mutex> lock_sended(m_mutex_sended);
+                            sended_msgs_.push_back(msgnode);
+                            // lock_sended.unlock();
+                          }
+                          std::unique_lock<std::mutex> lock(m_mutex_tosend);
+                          toSend_msgs_.pop_front();
+                          // 这里需要注意，不能简单pop掉，需要针对性收到应答处理
+                          if (!toSend_msgs_.empty())
+                          {
+                            lock.unlock();
                             do_write();
                           }
                         }
@@ -217,6 +235,21 @@ private:
                           socket_.close();
                         }
                       });
+  }
+
+  std::shared_ptr<KxMsgPacket_Basic> findPairedMsgSended()
+  {
+    std::shared_ptr<KxMsgPacket_Basic> ptr = nullptr;
+    std::unique_lock<std::mutex> lock_sended(m_mutex_sended);
+    for (auto &msg : sended_msgs_)
+    {
+      if (msg->isPair(read_msg_))
+      {
+        ptr = msg;
+        break;
+      }
+    }
+    return ptr;
   }
 
   void onHanleMsg()
@@ -236,8 +269,15 @@ private:
         auto nBodyLen = read_msg_.getBodyLen();
         if (nBodyLen >= sizeof(unsigned int) + AES_IV_BLOCK_SIZE)
         {
-          m_nSessionId = *(unsigned int *)m_pReadMsgBodyBuf;
-          std::memcpy(m_aes_iv, m_pReadMsgBodyBuf + 4, AES_IV_BLOCK_SIZE);
+          auto send_msg = findPairedMsgSended();
+          if (send_msg)
+          {
+            m_nSessionId = *(unsigned int *)m_pReadMsgBodyBuf;
+            std::memcpy(m_aes_iv, m_pReadMsgBodyBuf + 4, AES_IV_BLOCK_SIZE);
+
+            std::unique_lock<std::mutex> lock_sended(m_mutex_sended);
+            sended_msgs_.remove(send_msg);
+          }
         }
       }
     }
@@ -251,7 +291,19 @@ private:
         bool brt = checkAESPacketData(originMsgBody, nMsgBufLen);
         if (brt && originMsgBody && nMsgBufLen)
         {
-          setAES_Iv(originMsgBody);
+          auto send_msg = findPairedMsgSended();
+          if (send_msg)
+          {
+            if (nMsgBufLen == sizeof(KxWebSvrRegRespPacketBody_OriginMsg))
+            {
+              KxWebSvrRegRespPacketBody_OriginMsg *pOrignMsg = (KxWebSvrRegRespPacketBody_OriginMsg *)originMsgBody;
+
+              m_nSessionId = pOrignMsg->nSessionId;
+              setAES_Iv(pOrignMsg->szIV);
+            }
+            std::unique_lock<std::mutex> lock_sended(m_mutex_sended);
+            sended_msgs_.remove(send_msg);
+          }
           std::cout << "Recved New IV Data: " << std::hex;
           for (int i = 0; i < AES_IV_BLOCK_SIZE; ++i)
           {
@@ -315,10 +367,14 @@ private:
   KxMsgPacket_Basic read_msg_;
   unsigned char *m_pReadMsgBodyBuf;
   unsigned int m_nMsgBodyBufLen;
+  unsigned int m_nDevId;
   unsigned int m_nSessionId;
   unsigned char m_aes_key[AES_IV_BLOCK_SIZE];
   unsigned char m_aes_iv[AES_IV_BLOCK_SIZE];
-  chat_message_queue write_msgs_;
+  msgPacket_queue toSend_msgs_;
+  std::list<std::shared_ptr<KxMsgPacket_Basic>> sended_msgs_;
+  std::mutex m_mutex_tosend;
+  std::mutex m_mutex_sended;
 };
 
 #endif

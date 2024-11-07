@@ -8,7 +8,6 @@
 
 unsigned short crc16_ccitt(const unsigned char *buf, int len);
 
-
 #pragma pack(1)
 
 class KxMsgPacket_Basic
@@ -96,27 +95,33 @@ public:
 		}
 		return brt;
 	}
-    unsigned char * getHeaderBuf() {
-		return (unsigned char*)&m_msgHeader;
+	unsigned char *getHeaderBuf()
+	{
+		return (unsigned char *)&m_msgHeader;
 	}
-	unsigned int getHeaderLen() {
-		unsigned int nRt = sizeof(KxMsgHeader_Base);
-		if(m_msgHeader.nTypeFlag == cst_Resp_MsgType)
+	bool isRespMsg()
+	{
+		return m_msgHeader.nTypeFlag == cst_Resp_MsgType;
+	}
+	unsigned int getHeaderLen()
+	{
+		unsigned int nRt = sizeof(KxMsgReqHeader);
+		if (isRespMsg())
 		{
-			nRt += 2* sizeof(unsigned int);
-		}
-		else{
-			nRt += sizeof(unsigned int);
+			nRt = sizeof(KxMsgRespHeader);
 		}
 		return nRt;
 	}
-	void setSessionId(unsigned int nVal){
+	void setSessionId(unsigned int nVal)
+	{
 		m_nSessionId = nVal;
 	}
-	unsigned int getSessionId(){
+	unsigned int getSessionId()
+	{
 		return m_nSessionId;
 	}
 	void calculate_crc();
+
 private:
 	KxMsgHeader_Base m_msgHeader;
 	unsigned int m_nRespCode_u_DevId; // 此处仅为占用内存布局，具体取值，依赖mTypeFlag
@@ -127,5 +132,4 @@ private:
 
 #pragma pack()
 
-
-#endif //KX_MSG_PACKET_HPP_
+#endif // KX_MSG_PACKET_HPP_

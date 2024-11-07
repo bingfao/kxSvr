@@ -1,7 +1,6 @@
 
 // #include <cstdlib>
 
-
 #include <thread>
 #include "KxClient.hpp"
 
@@ -9,10 +8,6 @@ using asio::ip::tcp;
 
 const unsigned char default_aes_key[] = {0x51, 0x5D, 0x3D, 0x22, 0x97, 0x47, 0xC8, 0xFD, 0x9F, 0x30, 0x41, 0xD0, 0x8C, 0x0A, 0xE9, 0x10};
 const unsigned char default_aes_iv[] = {0x13, 0xF1, 0xDA, 0xC8, 0x8B, 0xB6, 0xE2, 0xCD, 0x9B, 0xEA, 0xE0, 0x63, 0x8F, 0x3F, 0x53, 0xAB};
-
-
-
-
 
 // const int max_body_length = 255;
 
@@ -36,10 +31,10 @@ int main(int argc, char *argv[])
                   { io_context.run(); });
     unsigned short nSeqNum(0);
     unsigned int nHeaderExtra[2] = {0};
-    std::cout << "input q to exit" << std::endl;
     bool bExit = false;
     while (true)
     {
+      std::cout << "input q to exit" << std::endl;
       auto ch = std::getchar();
       if (ch != EOF)
       {
@@ -54,10 +49,12 @@ int main(int argc, char *argv[])
           break;
         case '1':
         {
+          c.setDevId(10001);
           msg_b.nMsgId = 1001;
           msg_b.nMsgBodyLen = sizeof(KxDevRegPacketBody);
           KxDevRegPacketBody tbody;
-          nHeaderExtra[0] = 10001;
+          nHeaderExtra[0] = c.getDevId();
+          nHeaderExtra[1] = 0;
           auto msg = std::make_shared<KxMsgPacket_Basic>(msg_b, nHeaderExtra, (unsigned char *)&tbody, true);
           msg->calculate_crc();
           c.write(msg);
@@ -68,7 +65,7 @@ int main(int argc, char *argv[])
           msg_b.nMsgId = 1002;
           msg_b.nMsgBodyLen = sizeof(KxDevStatusPacketBody_Base);
           KxDevStatusPacketBody_Base tbody;
-          nHeaderExtra[0] = 10001;
+          nHeaderExtra[0] = c.getDevId();
           nHeaderExtra[1] = c.getSessionId();
           auto msg = std::make_shared<KxMsgPacket_Basic>(msg_b, nHeaderExtra, (unsigned char *)&tbody, true);
           msg->calculate_crc();
@@ -77,6 +74,7 @@ int main(int argc, char *argv[])
         break;
         case '9':
         {
+          c.setDevId(0);
           msg_b.nMsgId = 9001;
           msg_b.nCryptFlag = 1;
           unsigned char databuf[128] = {0};
@@ -97,7 +95,7 @@ int main(int argc, char *argv[])
             *pDataLen = ndataLen;
             unsigned short *pCrc16 = (unsigned short *)(szBodyRegOut + nOutBufLen + 4);
             *pCrc16 = crc16_ccitt((unsigned char *)databuf, ndataLen);
-            nHeaderExtra[0] = 0;
+            nHeaderExtra[0] = c.getDevId();
             nHeaderExtra[1] = 0;
             auto msg = std::make_shared<KxMsgPacket_Basic>(msg_b, nHeaderExtra, (unsigned char *)szBodyRegOut, true);
             msg->calculate_crc();
@@ -114,6 +112,7 @@ int main(int argc, char *argv[])
           const std::time_t t_c = std::chrono::system_clock::to_time_t(tp_now);
           msg_b.nMsgId = 4001;
           msg_b.nCryptFlag = 1;
+
           KxAppDevCtrlOpenLock_OriginMsg openlock_msg;
           openlock_msg.nDevId = 10001;
           openlock_msg.devtype = 1;
@@ -149,8 +148,8 @@ int main(int argc, char *argv[])
             *pDataLen = sizeof(openlock_msg);
             unsigned short *pCrc16 = (unsigned short *)(szBodyRegOut + nOutBufLen + 4);
             *pCrc16 = crc16_ccitt((unsigned char *)pBodyBuf, sizeof(openlock_msg));
-            nHeaderExtra[0] = 0;
-            nHeaderExtra[1] = 0;
+            nHeaderExtra[0] = c.getDevId();
+            nHeaderExtra[1] = c.getSessionId();
             auto msg = std::make_shared<KxMsgPacket_Basic>(msg_b, nHeaderExtra, (unsigned char *)szBodyRegOut, true);
             msg->calculate_crc();
             c.write(msg);

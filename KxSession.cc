@@ -166,8 +166,8 @@ bool KxDevSession::checkAESPacketData(const unsigned char *pBody, unsigned int n
 	bool brt(false);
 	// 先解密
 	unsigned int nAesDataLen = nBodyLen - 6;
-    unsigned int nCount = nAesDataLen / AES_IV_BLOCK_SIZE;
-    unsigned int nLeft = nAesDataLen % AES_IV_BLOCK_SIZE;
+	unsigned int nCount = nAesDataLen / AES_IV_BLOCK_SIZE;
+	unsigned int nLeft = nAesDataLen % AES_IV_BLOCK_SIZE;
 	if (nLeft)
 		++nCount;
 	nOriginDataLen = nCount * AES_IV_BLOCK_SIZE;
@@ -175,13 +175,13 @@ bool KxDevSession::checkAESPacketData(const unsigned char *pBody, unsigned int n
 	if (AES_decrypt(pBody, nAesDataLen, pOrigin, nOriginDataLen))
 	{
 		std::stringstream ssout;
-		ssout<<"AES_decrypt :" << std::hex;
+		ssout << "AES_decrypt :" << std::hex;
 		for (int i = 0; i < nOriginDataLen; ++i)
 		{
 			// std::cout<<std::hex<<ste::setw(2)<<std::fill('0')<<pBodyBuf[i];
 			ssout << std::setw(2) << std::setfill('0') << (short)pOrigin[i] << ' ';
 		}
-		//ssout << std::dec << std::endl;
+		// ssout << std::dec << std::endl;
 		KX_LOG_FUNC_(ssout.str());
 
 		unsigned short nCrc16 = crc16_ccitt((unsigned char *)pOrigin, nOriginDataLen);
@@ -296,12 +296,15 @@ void KxDevSession::setLastTime(const std::time_t &tm_val)
 
 void KxDevSession::checkTimeOut(const std::time_t &tm_val)
 {
-	auto tmdiff = tm_val - m_tm_last;
-	if (tmdiff > cst_Client_TimeOut_Sec)
+	if (!m_bWebSvr)
 	{
-		// std::cout << "KxDevSession timeout sessionId: " << std::hex << m_nSessionId << std::dec << std::endl;
-		KX_LOG_FUNC_(std::format("KxDevSession timeout sessionId: 0x{:x}", m_nSessionId));
-		Close();
+		auto tmdiff = tm_val - m_tm_last;
+		if (tmdiff > cst_Client_TimeOut_Sec)
+		{
+			// std::cout << "KxDevSession timeout sessionId: " << std::hex << m_nSessionId << std::dec << std::endl;
+			KX_LOG_FUNC_(std::format("KxDevSession timeout sessionId: 0x{:x}", m_nSessionId));
+			Close();
+		}
 	}
 }
 

@@ -129,34 +129,38 @@ void KxBusinessLogicMgr::WebSvrRegMsgCallBack(std::shared_ptr<KxDevSession> sess
 			msgRespHead_base.nMsgId = msgHeader.nMsgId;
 			msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
 			msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
-			unsigned char originRespData[AES_IV_BLOCK_SIZE + 8] = {0};
+			KxWebSvrRegRespPacketBody_OriginMsg originRespData;
+			// unsigned char originRespData[AES_IV_BLOCK_SIZE + 8] = {0};
 			const std::chrono::time_point<std::chrono::system_clock> tp_now =
 				std::chrono::system_clock::now();
 			const std::time_t t_c = std::chrono::system_clock::to_time_t(tp_now);
-			Rand_IV_Data(originRespData);
-			memcpy(originRespData + 16, &t_c, sizeof(std::time_t));
+			Rand_IV_Data(originRespData.szIV);
+			// memcpy(originRespData + 16, &t_c, sizeof(std::time_t));
+			originRespData.nSessionId = session->GetSessionId();
+			originRespData.curTime = t_c;
 			unsigned char msgBody[256] = {0};
 			unsigned int nBufLen = sizeof(msgBody);
-			brt = session->AES_encrypt(originRespData, sizeof(originRespData), msgBody, nBufLen);
+			unsigned char * poriginRespData = (unsigned char* )&originRespData;
+			brt = session->AES_encrypt(poriginRespData, sizeof(originRespData), msgBody, nBufLen);
 			if (brt)
 			{
-
+				session->setWebSvr();
 				unsigned int *pData = (unsigned int *)(msgBody + nBufLen);
 				*pData = sizeof(originRespData);
 				nBufLen += sizeof(unsigned int);
-				unsigned short nCrc16 = crc16_ccitt(originRespData, sizeof(originRespData));
+				unsigned short nCrc16 = crc16_ccitt(poriginRespData, sizeof(originRespData));
 				*(unsigned short *)(msgBody + nBufLen) = nCrc16;
 				nBufLen += sizeof(unsigned short);
 				msgRespHead_base.nMsgBodyLen = nBufLen;
 				msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 				session->SendRespPacket(msgRespHead_base, cst_nResp_Code_OK, msgBody, true);
-				session->setAES_Iv(originRespData);
+				session->setAES_Iv(originRespData.szIV);
 				ssout << "Set New IV Data: " << std::hex;
 				for (int i = 0; i < AES_IV_BLOCK_SIZE; ++i)
 				{
-					ssout << std::setw(2) << std::setfill('0') << (short)originRespData[i] << ' ';
+					ssout << std::setw(2) << std::setfill('0') << (short)poriginRespData[i] << ' ';
 				}
-				//ssout << std::dec << std::endl;
+				// ssout << std::dec << std::endl;
 				KX_LOG_FUNC_(ssout.str());
 			}
 			session->setLastTime(t_c);

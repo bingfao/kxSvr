@@ -1,6 +1,5 @@
 #pragma once
-#include <cstring>
-#include <vector>
+
 
 #ifndef KX_MSG_COMMON_DEF_H_
 #define KX_MSG_COMMON_DEF_H_
@@ -138,8 +137,8 @@ struct KxAppDevCtrlOpenLock_OriginMsg
 {
 	unsigned int nDevId;
 	unsigned char devtype;
-	int64_t  svrTime;
-	int32_t  nUsrId;
+	std::time_t  svrTime;
+	int  nUsrId;
 	unsigned short nAlowTime;
 	unsigned char nLowestSocP;
 	unsigned int nFarthestDist;
@@ -149,6 +148,18 @@ struct KxDevRegRespPacketBody
 {
 	unsigned int nDevSessionId;
 	unsigned char szIV[AES_IV_BLOCK_SIZE];
+};
+
+struct KxWebSvrRegRespPacketBody_OriginMsg
+{
+	unsigned int nSessionId;
+	unsigned char szIV[AES_IV_BLOCK_SIZE];
+	std::time_t  curTime;
+};
+
+struct KxWebSvrHeartBeat {
+	std::time_t  curTime;
+	char szHost[32];
 };
 
 #pragma pack()
