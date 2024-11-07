@@ -21,6 +21,7 @@ const int MSG_DEV_STATUS = 1002;
 const int MSG_DEVCTRL_OPENLOCK = 2001;
 
 const int MSG_WEBSVR_REGISTER = 9001;
+const int MSG_WEBSVR_HEARTBEAT = 9002;
 const int MSG_APP_DEVCTRL_OPENLOCK = 4001;
 
 const unsigned int AES_IV_BLOCK_SIZE = 16;

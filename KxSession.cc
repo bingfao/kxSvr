@@ -454,3 +454,11 @@ void KxDevSession::SendMsgPacket(const KxMsgHeader_Base &msgHeader, unsigned cha
 	asio::async_write(m_socket, vec_buf,
 					  std::bind(&KxDevSession::HandleMsgWrited, this, std::placeholders::_1, SharedSelf()));
 }
+
+unsigned int KxDevSession::getDevCount()
+{
+	unsigned int nRt(0);
+	if (m_server)
+		nRt = m_server->getDevCount();
+	return nRt;
+}

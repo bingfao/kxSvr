@@ -21,7 +21,9 @@ public:
 	void stop();
 	void addSvrMsgWaitResp(std::shared_ptr<KxMsgLogicNode>);
 	void onMsgResp(std::shared_ptr<KxMsgPacket_Basic> resp);
-
+    unsigned int  getDevCount(){
+		return m_devIdSession_Map.size();
+	}
 private:
 	void HandleAccept(std::shared_ptr<KxDevSession>, const asio::error_code &error);
 	void StartAccept();

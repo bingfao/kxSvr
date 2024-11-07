@@ -104,6 +104,28 @@ void KxBusinessLogicMgr::RegisterCallBacks()
 															 std::placeholders::_1, std::placeholders::_2);
 	m_map_FunCallbacks[MSG_WEBSVR_REGISTER] = std::bind(&KxBusinessLogicMgr::WebSvrRegMsgCallBack, this,
 														std::placeholders::_1, std::placeholders::_2);
+	m_map_FunCallbacks[MSG_WEBSVR_HEARTBEAT] = std::bind(&KxBusinessLogicMgr::WebSvrHeartBeatMsgCallBack, this,
+														std::placeholders::_1, std::placeholders::_2);
+}
+
+void KxBusinessLogicMgr::WebSvrHeartBeatMsgCallBack(std::shared_ptr<KxDevSession> session, const KxMsgPacket_Basic &msgPacket)
+{
+	auto msgHeader = msgPacket.getMsgHeader();
+	auto pMsgBody = msgPacket.getMsgBodyBuf();
+	char *pHost = (char *)(pMsgBody + 8);
+	if (std::strcmp(cst_szHost, pHost) == 0)
+	{
+		KxMsgHeader_Base msgRespHead_base;
+		msgRespHead_base.nMsgId = msgHeader.nMsgId;
+		msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
+		msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
+		const std::time_t t_c = std::time(nullptr);
+		msgRespHead_base.nMsgBodyLen = sizeof(unsigned int);
+		unsigned int nDevCount = session->getDevCount();
+		msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+		session->SendRespPacket(msgRespHead_base, cst_nResp_Code_OK, (unsigned char *)&nDevCount, true);
+		session->setLastTime(t_c);
+	}
 }
 
 void KxBusinessLogicMgr::WebSvrRegMsgCallBack(std::shared_ptr<KxDevSession> session, const KxMsgPacket_Basic &msgPacket)
@@ -131,16 +153,14 @@ void KxBusinessLogicMgr::WebSvrRegMsgCallBack(std::shared_ptr<KxDevSession> sess
 			msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
 			KxWebSvrRegRespPacketBody_OriginMsg originRespData;
 			// unsigned char originRespData[AES_IV_BLOCK_SIZE + 8] = {0};
-			const std::chrono::time_point<std::chrono::system_clock> tp_now =
-				std::chrono::system_clock::now();
-			const std::time_t t_c = std::chrono::system_clock::to_time_t(tp_now);
+			const std::time_t t_c = std::time(nullptr);
 			Rand_IV_Data(originRespData.szIV);
 			// memcpy(originRespData + 16, &t_c, sizeof(std::time_t));
 			originRespData.nSessionId = session->GetSessionId();
 			originRespData.curTime = t_c;
 			unsigned char msgBody[256] = {0};
 			unsigned int nBufLen = sizeof(msgBody);
-			unsigned char * poriginRespData = (unsigned char* )&originRespData;
+			unsigned char *poriginRespData = (unsigned char *)&originRespData;
 			brt = session->AES_encrypt(poriginRespData, sizeof(originRespData), msgBody, nBufLen);
 			if (brt)
 			{

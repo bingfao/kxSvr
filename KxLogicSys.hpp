@@ -33,6 +33,7 @@ private:
     void DevStatusMsgCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic& msgPacket);
 	void AppDevCtrlMsgCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic& msgPacket);
 	void WebSvrRegMsgCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic& msgPacket);
+	void WebSvrHeartBeatMsgCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic& msgPacket);
 	std::thread m_worker_thread;
 	std::queue<std::shared_ptr<KxBussinessLogicNode>> m_recvedMsg_que;
 	std::mutex m_mutex;

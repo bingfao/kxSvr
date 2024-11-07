@@ -17,13 +17,14 @@ class KxMsgLogicNode
 	// friend class kxServer;
 public:
 	KxMsgLogicNode(std::shared_ptr<KxMsgPacket_Basic> msgPacket, std::shared_ptr<KxBussinessLogicNode> logicNode = nullptr)
-		: m_sendPacket(msgPacket), m_logicNode(logicNode)
-		, m_timestamp(std::time(nullptr))
+		: m_sendPacket(msgPacket), m_logicNode(logicNode), m_timestamp(std::time(nullptr))
 	{
 	}
-    ~KxMsgLogicNode() {
+	~KxMsgLogicNode()
+	{
 		KX_LOG_FUNC_("KxMsgLogicNode Destructor");
 	}
+
 public:
 	std::shared_ptr<KxMsgPacket_Basic> m_sendPacket;
 	std::shared_ptr<KxBussinessLogicNode> m_logicNode;
@@ -59,18 +60,19 @@ public:
 		return shared_from_this();
 	}
 	bool checkMsgHeader(const KxMsgHeader_Base &msgHeader_base, unsigned int *pExtData);
-	bool checkAESPacketData(const unsigned char* pBody,unsigned int nBodyLen,unsigned char* &pOrigin,unsigned int& nOriginDataLen);
+	bool checkAESPacketData(const unsigned char *pBody, unsigned int nBodyLen, unsigned char *&pOrigin, unsigned int &nOriginDataLen);
 
 	// void updateAES_IV(const unsigned char*);
 	void RandIVData();
-	void setAES_Iv(const unsigned char* );
+	void setAES_Iv(const unsigned char *);
 	void setAES_Key(const unsigned char *);
 
 	void onMsgResp(std::shared_ptr<KxMsgPacket_Basic> resp);
 	std::shared_ptr<KxDevSession> getDevSession(unsigned int nDevId);
 
 	void updateDevSessionId(unsigned int nDevId, unsigned int nSessionId);
-     
+	unsigned int getDevCount();
+
 
 	void setLastTime(const std::time_t &);
 	std::time_t getLastTime()
@@ -89,10 +91,11 @@ public:
 	bool AES_decrypt(const unsigned char *pData, unsigned int nDataLen,
 					 unsigned char *pOut, unsigned int &nOutDataLen);
 
-    void setWebSvr()
+	void setWebSvr()
 	{
 		m_bWebSvr = true;
 	}
+
 private:
 	void HandleMsgWrited(const asio::error_code &error, std::shared_ptr<KxDevSession> shared_self);
 	void HandleRespWrited(const asio::error_code &error, std::shared_ptr<KxDevSession> shared_self);

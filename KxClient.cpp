@@ -32,138 +32,135 @@ int main(int argc, char *argv[])
     unsigned short nSeqNum(0);
     unsigned int nHeaderExtra[2] = {0};
     bool bExit = false;
+    std::string str_input;
     while (true)
     {
       std::cout << "input q to exit" << std::endl;
-      auto ch = std::getchar();
-      if (ch != EOF)
+      std::getline(std::cin, str_input);
+      KxMsgHeader_Base msg_b;
+      msg_b.nTypeFlag = 0;
+      msg_b.nSeqNum = nSeqNum++;
+      if (str_input == "q" || str_input == "Q" || str_input == "quit" || str_input == "Quit")
       {
-        KxMsgHeader_Base msg_b;
-        msg_b.nTypeFlag = 0;
-        msg_b.nSeqNum = nSeqNum++;
-        switch (ch)
+        break;
+      }
+      else if (str_input == "1" || str_input == "1001")
+      {
+        c.setDevId(10001);
+        msg_b.nMsgId = 1001;
+        msg_b.nMsgBodyLen = sizeof(KxDevRegPacketBody);
+        KxDevRegPacketBody tbody;
+        nHeaderExtra[0] = c.getDevId();
+        nHeaderExtra[1] = 0;
+        auto msg = std::make_shared<KxMsgPacket_Basic>(msg_b, nHeaderExtra, (unsigned char *)&tbody, true);
+        msg->calculate_crc();
+        c.write(msg);
+      }
+      else if (str_input == "2" || str_input == "1002")
+      {
+        msg_b.nMsgId = 1002;
+        msg_b.nMsgBodyLen = sizeof(KxDevStatusPacketBody_Base);
+        KxDevStatusPacketBody_Base tbody;
+        nHeaderExtra[0] = c.getDevId();
+        nHeaderExtra[1] = c.getSessionId();
+        auto msg = std::make_shared<KxMsgPacket_Basic>(msg_b, nHeaderExtra, (unsigned char *)&tbody, true);
+        msg->calculate_crc();
+        c.write(msg);
+      }
+      else if (str_input == "9" || str_input == "9001")
+      {
+        c.setDevId(0);
+        msg_b.nMsgId = 9001;
+        msg_b.nCryptFlag = 1;
+        unsigned char databuf[128] = {0};
+        const std::time_t t_c = std::time(nullptr);
+        memcpy(databuf, &t_c, sizeof(std::time_t));
+        const char szHost[] = "kingxun.site";
+        memcpy(databuf + 8, szHost, sizeof(szHost));
+        int ndataLen = 8 + sizeof(szHost);
+        unsigned char szBodyRegOut[128] = {0};
+        unsigned int nOutBufLen = sizeof(szBodyRegOut);
+        bool brt = aes_128_CBC_encrypt(default_aes_key, default_aes_iv, databuf, ndataLen, szBodyRegOut, nOutBufLen);
+        if (brt)
         {
-        case 'q':
-        case 'Q':
-          bExit = true;
-          break;
-        case '1':
-        {
-          c.setDevId(10001);
-          msg_b.nMsgId = 1001;
-          msg_b.nMsgBodyLen = sizeof(KxDevRegPacketBody);
-          KxDevRegPacketBody tbody;
+          msg_b.nMsgBodyLen = nOutBufLen + 6;
+          unsigned int *pDataLen = (unsigned int *)(szBodyRegOut + nOutBufLen);
+          *pDataLen = ndataLen;
+          unsigned short *pCrc16 = (unsigned short *)(szBodyRegOut + nOutBufLen + 4);
+          *pCrc16 = crc16_ccitt((unsigned char *)databuf, ndataLen);
           nHeaderExtra[0] = c.getDevId();
           nHeaderExtra[1] = 0;
-          auto msg = std::make_shared<KxMsgPacket_Basic>(msg_b, nHeaderExtra, (unsigned char *)&tbody, true);
+          auto msg = std::make_shared<KxMsgPacket_Basic>(msg_b, nHeaderExtra, (unsigned char *)szBodyRegOut, true);
           msg->calculate_crc();
+          c.setAES_Key(default_aes_key);
+          c.setAES_Iv(default_aes_iv);
           c.write(msg);
         }
-        break;
-        case '2':
-        {
-          msg_b.nMsgId = 1002;
-          msg_b.nMsgBodyLen = sizeof(KxDevStatusPacketBody_Base);
-          KxDevStatusPacketBody_Base tbody;
-          nHeaderExtra[0] = c.getDevId();
-          nHeaderExtra[1] = c.getSessionId();
-          auto msg = std::make_shared<KxMsgPacket_Basic>(msg_b, nHeaderExtra, (unsigned char *)&tbody, true);
-          msg->calculate_crc();
-          c.write(msg);
-        }
-        break;
-        case '9':
-        {
-          c.setDevId(0);
-          msg_b.nMsgId = 9001;
-          msg_b.nCryptFlag = 1;
-          unsigned char databuf[128] = {0};
-          const std::chrono::time_point<std::chrono::system_clock> tp_now =
-              std::chrono::system_clock::now();
-          const std::time_t t_c = std::chrono::system_clock::to_time_t(tp_now);
-          memcpy(databuf, &t_c, sizeof(std::time_t));
-          const char szHost[] = "kingxun.site";
-          memcpy(databuf + 8, szHost, sizeof(szHost));
-          int ndataLen = 8 + sizeof(szHost);
-          unsigned char szBodyRegOut[128] = {0};
-          unsigned int nOutBufLen = sizeof(szBodyRegOut);
-          bool brt = aes_128_CBC_encrypt(default_aes_key, default_aes_iv, databuf, ndataLen, szBodyRegOut, nOutBufLen);
-          if (brt)
-          {
-            msg_b.nMsgBodyLen = nOutBufLen + 6;
-            unsigned int *pDataLen = (unsigned int *)(szBodyRegOut + nOutBufLen);
-            *pDataLen = ndataLen;
-            unsigned short *pCrc16 = (unsigned short *)(szBodyRegOut + nOutBufLen + 4);
-            *pCrc16 = crc16_ccitt((unsigned char *)databuf, ndataLen);
-            nHeaderExtra[0] = c.getDevId();
-            nHeaderExtra[1] = 0;
-            auto msg = std::make_shared<KxMsgPacket_Basic>(msg_b, nHeaderExtra, (unsigned char *)szBodyRegOut, true);
-            msg->calculate_crc();
-            c.setAES_Key(default_aes_key);
-            c.setAES_Iv(default_aes_iv);
-            c.write(msg);
-          }
-        }
-        break;
-        case '4':
-        {
-          const std::chrono::time_point<std::chrono::system_clock> tp_now =
-              std::chrono::system_clock::now();
-          const std::time_t t_c = std::chrono::system_clock::to_time_t(tp_now);
-          msg_b.nMsgId = 4001;
-          msg_b.nCryptFlag = 1;
+      }
+      else if (str_input == "9002")
+      {
+        msg_b.nMsgId = 9002;
+        msg_b.nCryptFlag = 0;
+        KxWebSvrHeartBeat heartbeat;
+        const std::time_t t_c = std::time(nullptr);
+        heartbeat.curTime = t_c;
+        const char szHost[] = "kingxun.site";
+        memcpy(heartbeat.szHost, szHost, sizeof(szHost));
+        msg_b.nMsgBodyLen = sizeof(KxWebSvrHeartBeat);
+        nHeaderExtra[0] = c.getDevId();
+        nHeaderExtra[1] = c.getSessionId();
+        auto msg = std::make_shared<KxMsgPacket_Basic>(msg_b, nHeaderExtra, (unsigned char *)&heartbeat, true);
+        msg->calculate_crc();
+        c.write(msg);
+      }
+      else if (str_input == "4" || str_input == "4001")
+      {
+        const std::time_t t_c = std::time(nullptr);
+        msg_b.nMsgId = 4001;
+        msg_b.nCryptFlag = 1;
 
-          KxAppDevCtrlOpenLock_OriginMsg openlock_msg;
-          openlock_msg.nDevId = 10001;
-          openlock_msg.devtype = 1;
-          openlock_msg.nUsrId = 1;
-          openlock_msg.svrTime = t_c;
-          openlock_msg.nAlowTime = 1440;
-          openlock_msg.nLowestSocP = 20;
-          openlock_msg.nFarthestDist = 50000;
+        KxAppDevCtrlOpenLock_OriginMsg openlock_msg;
+        openlock_msg.nDevId = 10001;
+        openlock_msg.devtype = 1;
+        openlock_msg.nUsrId = 1;
+        openlock_msg.svrTime = t_c;
+        openlock_msg.nAlowTime = 1440;
+        openlock_msg.nLowestSocP = 20;
+        openlock_msg.nFarthestDist = 50000;
 
-          unsigned char *pBodyBuf = (unsigned char *)&openlock_msg;
-          std::cout << "Origin Packet Data: " << std::hex;
-          for (int i = 0; i < sizeof(openlock_msg); ++i)
+        unsigned char *pBodyBuf = (unsigned char *)&openlock_msg;
+        std::cout << "Origin Packet Data: " << std::hex;
+        for (int i = 0; i < sizeof(openlock_msg); ++i)
+        {
+          // std::cout<<std::hex<<ste::setw(2)<<std::fill('0')<<pBodyBuf[i];
+          std::cout << std::setw(2) << std::setfill('0') << (short)pBodyBuf[i] << ' ';
+        }
+        std::cout << std::dec << std::endl;
+
+        unsigned char szBodyRegOut[128] = {0};
+        unsigned int nOutBufLen = sizeof(szBodyRegOut);
+        if (c.AES_encryptPacket(pBodyBuf, sizeof(openlock_msg), szBodyRegOut, nOutBufLen))
+        {
+          std::cout << "aes encrypted Data: " << std::hex;
+          for (int i = 0; i < nOutBufLen; ++i)
           {
             // std::cout<<std::hex<<ste::setw(2)<<std::fill('0')<<pBodyBuf[i];
-            std::cout << std::setw(2) << std::setfill('0') << (short)pBodyBuf[i] << ' ';
+            std::cout << std::setw(2) << std::setfill('0') << (short)szBodyRegOut[i] << ' ';
           }
           std::cout << std::dec << std::endl;
 
-          unsigned char szBodyRegOut[128] = {0};
-          unsigned int nOutBufLen = sizeof(szBodyRegOut);
-          if (c.AES_encryptPacket(pBodyBuf, sizeof(openlock_msg), szBodyRegOut, nOutBufLen))
-          {
-            std::cout << "aes encrypted Data: " << std::hex;
-            for (int i = 0; i < nOutBufLen; ++i)
-            {
-              // std::cout<<std::hex<<ste::setw(2)<<std::fill('0')<<pBodyBuf[i];
-              std::cout << std::setw(2) << std::setfill('0') << (short)szBodyRegOut[i] << ' ';
-            }
-            std::cout << std::dec << std::endl;
-
-            msg_b.nMsgBodyLen = nOutBufLen + 6;
-            unsigned int *pDataLen = (unsigned int *)(szBodyRegOut + nOutBufLen);
-            *pDataLen = sizeof(openlock_msg);
-            unsigned short *pCrc16 = (unsigned short *)(szBodyRegOut + nOutBufLen + 4);
-            *pCrc16 = crc16_ccitt((unsigned char *)pBodyBuf, sizeof(openlock_msg));
-            nHeaderExtra[0] = c.getDevId();
-            nHeaderExtra[1] = c.getSessionId();
-            auto msg = std::make_shared<KxMsgPacket_Basic>(msg_b, nHeaderExtra, (unsigned char *)szBodyRegOut, true);
-            msg->calculate_crc();
-            c.write(msg);
-          }
-        }
-        break;
+          msg_b.nMsgBodyLen = nOutBufLen + 6;
+          unsigned int *pDataLen = (unsigned int *)(szBodyRegOut + nOutBufLen);
+          *pDataLen = sizeof(openlock_msg);
+          unsigned short *pCrc16 = (unsigned short *)(szBodyRegOut + nOutBufLen + 4);
+          *pCrc16 = crc16_ccitt((unsigned char *)pBodyBuf, sizeof(openlock_msg));
+          nHeaderExtra[0] = c.getDevId();
+          nHeaderExtra[1] = c.getSessionId();
+          auto msg = std::make_shared<KxMsgPacket_Basic>(msg_b, nHeaderExtra, (unsigned char *)szBodyRegOut, true);
+          msg->calculate_crc();
+          c.write(msg);
         }
       }
-      else
-      {
-        bExit = true;
-      }
-      if (bExit)
-        break;
     }
     c.close();
     t.join();
