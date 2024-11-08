@@ -389,6 +389,70 @@ HttpResponse采用json形式返回
 
 
 
+## 车辆开锁
+/openLock
+
+httpRequest
+  - type          //type不参与计算hash
+    - 1 wx小程序
+    - 2 独立App  
+  - usrId 
+  - devId
+  - devType
+  **以下3项不参与计算hash**
+  - allowTime       允许使用的时长， 以min计
+  - lowestSocP      允许使用到的最低电量  0~100
+  - farthestDist    允许的最远距离，以m计
+  - hash
+
+HttpResponse采用json形式返回
+  - errCode
+  - errMsg
+
+
+## 车辆锁定
+/lockDev
+
+httpRequest
+  - type          //type不参与计算hash
+    - 1 wx小程序
+    - 2 独立App  
+  - usrId 
+  - devId
+  - devType
+  - voice           关锁音效  number
+  - hash
+
+HttpResponse采用json形式返回
+  - errCode
+  - errMsg
+
+## 防盗锁定
+/lockDevOnGuard
+
+httpRequest
+  - type          //type不参与计算hash
+    - 1 wx小程序
+    - 2 独立App  
+  - usrId 
+  - devId
+  - devType
+  - shutdownMotor   是否关闭电驱
+  - maxSpeed        限制的最高速度, 以m/s*100
+  - warningVoice    报警音效
+  - hash
+
+HttpResponse采用json形式返回
+  - errCode
+  - errMsg
+
+## 灯光控制
+/devLightCtrl
+
+## 声响控制
+/devVoiceCtrl
+
+
 
 
 
@@ -441,7 +505,8 @@ webSvr收到后，后续报文，使用该IV来做AES计算
 ### 应答包
 - RespCode
     - 0   Ok
-- totalDevCount        4Byte     
+- totalDevCount        4Byte   
+- svrStartTime         8Byte   svr启动的时间点值  
 
 
 

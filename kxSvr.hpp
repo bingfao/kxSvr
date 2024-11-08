@@ -24,6 +24,10 @@ public:
     unsigned int  getDevCount(){
 		return m_devIdSession_Map.size();
 	}
+	std::time_t getSvrStartTime()
+	{
+		return m_startTime;
+	}
 private:
 	void HandleAccept(std::shared_ptr<KxDevSession>, const asio::error_code &error);
 	void StartAccept();
@@ -34,8 +38,9 @@ private:
 	asio::io_context &m_io_context;
 	unsigned int m_nsessionCount;
 	short m_nPort;
+	std::time_t m_startTime;
 	asio::ip::tcp::acceptor m_acceptor;
-
+     
 	std::map<unsigned int, std::shared_ptr<KxDevSession>> m_sessionsMap;  //key: sessionId
 	std::map<unsigned int, unsigned int> m_devIdSession_Map;   //key: devId,value sessionId
 	std::mutex m_mutex_map;

@@ -120,10 +120,12 @@ void KxBusinessLogicMgr::WebSvrHeartBeatMsgCallBack(std::shared_ptr<KxDevSession
 		msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
 		msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
 		const std::time_t t_c = std::time(nullptr);
-		msgRespHead_base.nMsgBodyLen = sizeof(unsigned int);
-		unsigned int nDevCount = session->getDevCount();
+		KxWebSvrHeartBeatResp respbody;
+		msgRespHead_base.nMsgBodyLen = sizeof(respbody);
+		respbody.ntotalDevCount = session->getDevCount();
+		respbody.svrStartTime = session->getSvrStartTime();
 		msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
-		session->SendRespPacket(msgRespHead_base, cst_nResp_Code_OK, (unsigned char *)&nDevCount, true);
+		session->SendRespPacket(msgRespHead_base, cst_nResp_Code_OK, (unsigned char *)&respbody, true);
 		session->setLastTime(t_c);
 	}
 }

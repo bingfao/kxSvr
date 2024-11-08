@@ -163,6 +163,11 @@ struct KxWebSvrHeartBeat {
 	char szHost[32];
 };
 
+struct KxWebSvrHeartBeatResp {
+	unsigned int ntotalDevCount;
+	std::time_t svrStartTime;
+};
+
 #pragma pack()
 
 #endif

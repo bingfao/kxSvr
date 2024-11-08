@@ -462,3 +462,11 @@ unsigned int KxDevSession::getDevCount()
 		nRt = m_server->getDevCount();
 	return nRt;
 }
+
+std::time_t KxDevSession::getSvrStartTime()
+{
+	std::time_t tc = std::time(nullptr);
+	if (m_server)
+		tc = m_server->getSvrStartTime();
+	return tc;
+}

@@ -72,6 +72,7 @@ public:
 
 	void updateDevSessionId(unsigned int nDevId, unsigned int nSessionId);
 	unsigned int getDevCount();
+	std::time_t getSvrStartTime();
 
 
 	void setLastTime(const std::time_t &);

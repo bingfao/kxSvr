@@ -26,6 +26,7 @@ KxServer::KxServer(asio::io_context &io_context, short port)
 {
     // std::cout << "Server start success, listen on port : " << m_nPort << std::endl;
     std::string strlog = "Server start success, listen on port : " + std::to_string(m_nPort);
+    m_startTime = std::time(nullptr);
     KX_LOG_FUNC_(strlog);
     StartAccept();
     StartCheckTimeOutSessions();
@@ -191,9 +192,10 @@ void KxServer::CheckTimeOutSessions(const std::error_code & /*e*/,
     // 定期检查timeout的session，close掉
     // std::cout << "CheckTimeOutSessions" << std::endl;
     // KX_LOG_FUNC_("CheckTimeOutSessions");
-    const std::chrono::time_point<std::chrono::system_clock> tp_now =
-        std::chrono::system_clock::now();
-    const std::time_t t_c = std::chrono::system_clock::to_time_t(tp_now);
+    // const std::chrono::time_point<std::chrono::system_clock> tp_now =
+    //     std::chrono::system_clock::now();
+    // const std::time_t t_c =  std::chrono::system_clock::to_time_t(tp_now);
+    const std::time_t t_c =  std::time(nullptr);
     auto tm_now = std::localtime(&t_c);
     if (tm_now->tm_hour == 0 && tm_now->tm_min < 5)
     {
