@@ -96,11 +96,15 @@ public:
 	{
 		m_bWebSvr = true;
 	}
+    const std::string& getaddrinfo(){
+		return m_strAddr;
+	}
 
 private:
 	void HandleMsgWrited(const asio::error_code &error, std::shared_ptr<KxDevSession> shared_self);
 	void HandleRespWrited(const asio::error_code &error, std::shared_ptr<KxDevSession> shared_self);
 	asio::ip::tcp::socket m_socket;
+	std::string m_strAddr;
 	unsigned int m_nDevId;
 	unsigned int m_nSessionId;
 	unsigned char m_dataBuf[MAX_LENGTH];

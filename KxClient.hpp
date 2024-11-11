@@ -142,6 +142,8 @@ private:
                                onHanleMsg();
                              }
                            }
+                           else
+                             do_read_header();
                          }
                          else
                          {
@@ -151,7 +153,7 @@ private:
                        else
                        {
                          std::cout << "socket Read Header error, closed. " << ec.message() << std::endl;
-                         socket_.close();
+                         close();
                        }
                      });
   }
@@ -195,7 +197,7 @@ private:
                          }
                          else
                          {
-                          do_read_header();
+                           do_read_header();
                          }
                        }
                        else
@@ -236,7 +238,8 @@ private:
                         }
                         else
                         {
-                          socket_.close();
+                          std::cout << "socket async_write error, closed. " << ec.message() << std::endl;
+                          close();
                         }
                       });
   }

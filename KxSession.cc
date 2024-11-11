@@ -320,7 +320,7 @@ void KxDevSession::checkTimeOut(const std::time_t &tm_val)
 		if (tmdiff > cst_Client_TimeOut_Sec)
 		{
 			// std::cout << "KxDevSession timeout sessionId: " << std::hex << m_nSessionId << std::dec << std::endl;
-			KX_LOG_FUNC_(std::format("KxDevSession timeout sessionId: 0x{:x}", m_nSessionId));
+			KX_LOG_FUNC_(std::format("KxDevSession timeout sessionId: 0x{:x}, client addr: {}", m_nSessionId, m_strAddr));
 			Close();
 		}
 	}
@@ -329,7 +329,7 @@ void KxDevSession::checkTimeOut(const std::time_t &tm_val)
 void KxDevSession::onPeerClose()
 {
 	// std::cout << "KxDevSession receive peer closed. sessionId: " << std::hex << m_nSessionId << std::dec << std::endl;
-	KX_LOG_FUNC_(std::format("KxDevSession receive peer closed. sessionId: 0x{:x}", m_nSessionId));
+	KX_LOG_FUNC_(std::format("KxDevSession client addr: {} closed. sessionId: 0x{:x}", m_strAddr, m_nSessionId));
 	Close();
 	std::unique_lock<std::mutex> lock(m_send_mutex);
 	while (!m_svrMsgToSend_que.empty())
@@ -350,6 +350,14 @@ void KxDevSession::Start()
 	// 开启接收协程
 	asio::co_spawn(m_io_context, [shared_this, this]() -> asio::awaitable<void>
 				   {
+		std::error_code ec;
+		auto pt = m_socket.remote_endpoint(ec);
+		if (!ec) {
+			m_strAddr = pt.address().to_string(ec);
+			m_strAddr.append(":").append(std::to_string(pt.port()));
+			KX_LOG_FUNC_(std::format("Client {} connected, SessionId: 0x{:x}.",m_strAddr,m_nSessionId));
+		}
+    
 		try {
 			KxMsgHeader_Base msgHeader_base;
 			unsigned int nHeaderExtData[2];
@@ -423,7 +431,14 @@ void KxDevSession::Start()
 						}
 						else{
 							// std::cout << "invalid msgHeader is " << msgHeader_base.nMsgId << std::endl;
-							KX_LOG_FUNC_(std::format("invalid msgHeader is {:d}",msgHeader_base.nMsgId));
+							std::stringstream ss;
+							ss << std::hex;
+							unsigned char * pBuf =(unsigned char*)&msgHeader_base;
+							for (int j = 0; j < sizeof(msgHeader_base); ++j)
+							{
+								ss << std::setw(2) << std::setfill('0') << (short)pBuf[j] << ' ';
+							}
+							KX_LOG_FUNC_(std::format("invalid msgid {}, Header data: {} from {}",msgHeader_base.nMsgId,ss.str(),m_strAddr));
 						}
 					}
 				}			
