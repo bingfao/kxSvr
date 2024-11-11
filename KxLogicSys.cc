@@ -105,7 +105,9 @@ void KxBusinessLogicMgr::RegisterCallBacks()
 	m_map_FunCallbacks[MSG_WEBSVR_REGISTER] = std::bind(&KxBusinessLogicMgr::WebSvrRegMsgCallBack, this,
 														std::placeholders::_1, std::placeholders::_2);
 	m_map_FunCallbacks[MSG_WEBSVR_HEARTBEAT] = std::bind(&KxBusinessLogicMgr::WebSvrHeartBeatMsgCallBack, this,
-														std::placeholders::_1, std::placeholders::_2);
+														 std::placeholders::_1, std::placeholders::_2);
+	m_map_FunCallbacks[MSG_DEV_USED_TRAFFIC] = std::bind(&KxBusinessLogicMgr::DevUsedTrafficMsgCallBack, this,
+														 std::placeholders::_1, std::placeholders::_2);
 }
 
 void KxBusinessLogicMgr::WebSvrHeartBeatMsgCallBack(std::shared_ptr<KxDevSession> session, const KxMsgPacket_Basic &msgPacket)
@@ -343,6 +345,53 @@ void KxBusinessLogicMgr::DevStatusMsgCallBack(std::shared_ptr<KxDevSession> sess
 							 msgPacket.getDevId(),
 							 pDevStatus->nDevType, pDevStatus->lngPos, pDevStatus->latPos, pDevStatus->mileage, pDevStatus->bDriving, pDevStatus->speed,
 							 *pStatusLow, *pStatusHigh, pDevStatus->bMiniBatExist, strbMiniBatId, strbMiniBatStatus, pDevStatus->batteryExist, pDevStatus->chargeFlag, pDevStatus->szBatteryId, batstid, t_c);
+		KX_LOG_FUNC_(strsql);
+		// std::cout << "sql is: " << strsql << std::endl;
+		tx.exec(strsql);
+		tx.commit();
+	}
+	catch (std::exception const &e)
+	{
+		// std::cerr << "ERROR: " << e.what() << std::endl;
+		std::string strLog = "ERROR: ";
+		strLog += e.what();
+		KX_LOG_FUNC_(strLog);
+	}
+#endif
+}
+
+void KxBusinessLogicMgr::DevUsedTrafficMsgCallBack(std::shared_ptr<KxDevSession> session, const KxMsgPacket_Basic &msgPacket)
+{
+	KxMsgHeader_Base msgRespHead_base;
+	auto msgHeader = msgPacket.getMsgHeader();
+	msgRespHead_base.nMsgId = msgHeader.nMsgId;
+	msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
+	msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
+	msgRespHead_base.nMsgBodyLen = 0;
+	msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+	session->SendRespPacket(msgRespHead_base, cst_nResp_Code_OK, nullptr, false);
+	// const std::chrono::time_point<std::chrono::system_clock> tp_now =
+	// 	std::chrono::system_clock::now();
+	// const std::time_t t_c = std::chrono::system_clock::to_time_t(tp_now);
+	const std::time_t t_c = std::time(nullptr);
+	session->setLastTime(t_c);
+#ifdef USING_PQ_DB_
+	try
+	{
+		// pqxx::connection c{"host=localhost port=5432 dbname=kingxun user=postgres password=bingfao"};
+
+#ifdef WIN32
+		pqxx::connection c{"postgresql://postgres:gb6205966@localhost/postgres"};
+#else
+		pqxx::connection c{"postgresql://postgres:bingfao@localhost/kingxun"};
+#endif
+		pqxx::work tx{c};
+		KxDevUsedTrafficPacketBody *pBody = (KxDevUsedTrafficPacketBody *)msgPacket.getMsgBodyBuf();
+
+		std::string strsql;
+
+		strsql = std::format("Insert into devusedtraffic (devId,devType,\"usedTraffic\",stTime) values ({},{:d},{},localtimestamp({:d}) );",
+							 msgPacket.getDevId(), pBody->nDevType, pBody->nUsedTraffic, t_c);
 		KX_LOG_FUNC_(strsql);
 		// std::cout << "sql is: " << strsql << std::endl;
 		tx.exec(strsql);

@@ -95,6 +95,21 @@ int main(int argc, char *argv[])
         msg->calculate_crc();
         c.write(msg);
       }
+      else if (str_input == "1004")
+      {
+        c.setDevId(10001);
+        msg_b.nMsgId = 1004;
+        msg_b.nMsgBodyLen = sizeof(KxDevUsedTrafficPacketBody);
+        KxDevUsedTrafficPacketBody tbody;
+        tbody.nDevType = 1;
+        tbody.nProtocolFlag =1;
+        tbody.nUsedTraffic = 3000;
+        nHeaderExtra[0] = c.getDevId();
+        nHeaderExtra[1] = c.getSessionId();
+        auto msg = std::make_shared<KxMsgPacket_Basic>(msg_b, nHeaderExtra, (unsigned char *)&tbody, true);
+        msg->calculate_crc();
+        c.write(msg);
+      }
       else if (str_input == "9" || str_input == "9001")
       {
         c.setDevId(0);

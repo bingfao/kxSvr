@@ -17,6 +17,8 @@ const unsigned int cst_nResp_Code_SEND_DEV_ERR = 5;
 
 const int MSG_DEV_REGISTER = 1001;
 const int MSG_DEV_STATUS = 1002;
+const int MSG_DEV_USED_TRAFFIC = 1004;
+
 const int MSG_DEVCTRL_OPENLOCK = 2001;
 
 const int MSG_WEBSVR_REGISTER = 9001;
@@ -135,6 +137,13 @@ struct KxDevStatusPacketBody_Base
 	KxDev_BatteryStatus_ batteryStatus;
 	unsigned char seriesCount;
 	KxDev_BatterySerieData_ seriesData;
+};
+
+struct KxDevUsedTrafficPacketBody
+{
+	unsigned char nDevType;
+	unsigned char nProtocolFlag;
+	unsigned int nUsedTraffic;
 };
 
 struct KxAppDevCtrlOpenLock_OriginMsg
