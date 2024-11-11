@@ -53,30 +53,41 @@ void KxDevSession::HandleRespWrited(const asio::error_code &error, std::shared_p
 		if (!error)
 		{
 			std::unique_lock<std::mutex> lock(m_send_mutex);
-			auto msgnodeHeader = m_svrRespToSend_que.front()->getMsgHeader();
-			// std::cout << "Resp send OK. MsgId: " << msgnodeHeader.nMsgId << " SessionId: 0x" << std::hex << m_nSessionId << std::dec << std::endl;
-			// std::string strLog = "Resp send OK. MsgId: "+std::to_string(msgnodeHeader.nMsgId)+" SessionId: 0x";
-			// strLog += std::format("{:X}",m_nSessionId);
-			// KX_LOG_FUNC_(strLog);
-			KX_LOG_FUNC_(std::format("Resp send OK. MsgId: {:d}  SessionId: 0x{:x}", msgnodeHeader.nMsgId, m_nSessionId));
-			m_svrRespToSend_que.pop();
+			bool bDone(false);
 			if (!m_svrRespToSend_que.empty())
 			{
-				auto msgnode = m_svrRespToSend_que.front();
-				lock.unlock();
-				std::vector<asio::const_buffer> vec_buf;
-				msgnode->getvecBuffer(vec_buf);
-				asio::async_write(m_socket, vec_buf,
-								  std::bind(&KxDevSession::HandleRespWrited, this, std::placeholders::_1, shared_self));
+				auto msg_node = m_svrRespToSend_que.front();
+				auto msgnodeHeader = msg_node->getMsgHeader();
+				// std::cout << "Resp send OK. MsgId: " << msgnodeHeader.nMsgId << " SessionId: 0x" << std::hex << m_nSessionId << std::dec << std::endl;
+				// std::string strLog = "Resp send OK. MsgId: "+std::to_string(msgnodeHeader.nMsgId)+" SessionId: 0x";
+				// strLog += std::format("{:X}",m_nSessionId);
+				// KX_LOG_FUNC_(strLog);
+				KX_LOG_FUNC_(std::format("Resp send OK. MsgId: {:d}  SessionId: 0x{:x}", msgnodeHeader.nMsgId, m_nSessionId));
+				m_svrRespToSend_que.pop();
+				if (!m_svrRespToSend_que.empty())
+				{
+					auto msgnode = m_svrRespToSend_que.front();
+
+					std::vector<asio::const_buffer> vec_buf;
+					msgnode->getvecBuffer(vec_buf);
+					lock.unlock();
+
+					asio::async_write(m_socket, vec_buf,
+									  std::bind(&KxDevSession::HandleRespWrited, this, std::placeholders::_1, shared_self));
+					bDone = true;
+				}
 			}
-			else if (!m_svrMsgToSend_que.empty())
+			if (!bDone)
 			{
-				auto msgnode = m_svrMsgToSend_que.front();
-				lock.unlock();
-				std::vector<asio::const_buffer> vec_buf;
-				msgnode->m_sendPacket->getvecBuffer(vec_buf);
-				asio::async_write(m_socket, vec_buf,
-								  std::bind(&KxDevSession::HandleMsgWrited, this, std::placeholders::_1, shared_self));
+				if (!m_svrMsgToSend_que.empty())
+				{
+					auto msgnode = m_svrMsgToSend_que.front();
+					std::vector<asio::const_buffer> vec_buf;
+					msgnode->m_sendPacket->getvecBuffer(vec_buf);
+					lock.unlock();
+					asio::async_write(m_socket, vec_buf,
+									  std::bind(&KxDevSession::HandleMsgWrited, this, std::placeholders::_1, shared_self));
+				}
 			}
 		}
 		else
@@ -103,26 +114,33 @@ void KxDevSession::HandleMsgWrited(const asio::error_code &error, std::shared_pt
 		if (!error)
 		{
 			std::unique_lock<std::mutex> lock(m_send_mutex);
-			auto logicNode = m_svrMsgToSend_que.front();
-			m_server->addSvrMsgWaitResp(logicNode);
-			m_svrMsgToSend_que.pop();
+			bool bDone(false);
 			if (!m_svrMsgToSend_que.empty())
 			{
-				auto msgnode = m_svrMsgToSend_que.front();
-				lock.unlock();
-				std::vector<asio::const_buffer> vec_buf;
-				msgnode->m_sendPacket->getvecBuffer(vec_buf);
-				asio::async_write(m_socket, vec_buf,
-								  std::bind(&KxDevSession::HandleMsgWrited, this, std::placeholders::_1, shared_self));
+				auto logicNode = m_svrMsgToSend_que.front();
+				m_server->addSvrMsgWaitResp(logicNode);
+				m_svrMsgToSend_que.pop();
+				if (!m_svrMsgToSend_que.empty())
+				{
+					auto msgnode = m_svrMsgToSend_que.front();
+					std::vector<asio::const_buffer> vec_buf;
+					msgnode->m_sendPacket->getvecBuffer(vec_buf);
+					lock.unlock();
+					asio::async_write(m_socket, vec_buf,
+									  std::bind(&KxDevSession::HandleMsgWrited, this, std::placeholders::_1, shared_self));
+				}
 			}
-			else if (!m_svrRespToSend_que.empty())
+			if (!bDone)
 			{
-				auto msgnode = m_svrRespToSend_que.front();
-				lock.unlock();
-				std::vector<asio::const_buffer> vec_buf;
-				msgnode->getvecBuffer(vec_buf);
-				asio::async_write(m_socket, vec_buf,
-								  std::bind(&KxDevSession::HandleRespWrited, this, std::placeholders::_1, shared_self));
+				if (!m_svrRespToSend_que.empty())
+				{
+					auto msgnode = m_svrRespToSend_que.front();
+					std::vector<asio::const_buffer> vec_buf;
+					msgnode->getvecBuffer(vec_buf);
+					lock.unlock();
+					asio::async_write(m_socket, vec_buf,
+									  std::bind(&KxDevSession::HandleRespWrited, this, std::placeholders::_1, shared_self));
+				}
 			}
 		}
 		else
@@ -448,9 +466,9 @@ void KxDevSession::SendMsgPacket(const KxMsgHeader_Base &msgHeader, unsigned cha
 	auto msgPacket = std::make_shared<KxMsgPacket_Basic>(msgHeader, nHeaderExtData, pBodyBuf, bDelBuf);
 	m_svrMsgToSend_que.push(std::make_shared<KxMsgLogicNode>(msgPacket, pLogicNode));
 	auto msgnode = m_svrMsgToSend_que.front();
-	lock.unlock();
 	std::vector<asio::const_buffer> vec_buf;
 	msgnode->m_sendPacket->getvecBuffer(vec_buf);
+	lock.unlock();
 	asio::async_write(m_socket, vec_buf,
 					  std::bind(&KxDevSession::HandleMsgWrited, this, std::placeholders::_1, SharedSelf()));
 }

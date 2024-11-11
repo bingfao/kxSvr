@@ -1,6 +1,5 @@
 #pragma once
 
-
 #ifndef KX_MSG_COMMON_DEF_H_
 #define KX_MSG_COMMON_DEF_H_
 
@@ -30,6 +29,10 @@ const unsigned int AES_IV_BLOCK_SIZE = 16;
 
 struct KxMsgHeader_Base
 {
+	KxMsgHeader_Base()
+		: nMsgId(0), nTypeFlag(0), nSeqNum(0), nMsgBodyLen(0),nReserve{0}, nCryptFlag(0), nCrc16(0)
+	{
+	}
 	unsigned short nMsgId;
 	unsigned char nTypeFlag; // 0 Send, 1: Resp
 	unsigned short nSeqNum;
@@ -46,6 +49,7 @@ public:
 
 	KxMsgRespHeader()
 		: KxMsgHeader_Base()
+		, nRespCode(0)
 	{
 		nTypeFlag = cst_Resp_MsgType;
 	}
@@ -59,6 +63,7 @@ public:
 
 	KxMsgReqHeader()
 		: KxMsgHeader_Base()
+		, nDevId(0), nSessionId(0)
 	{
 		nTypeFlag = 0;
 	}
@@ -79,8 +84,6 @@ struct KxDevRegPacketBody
 	unsigned int nDashBoardHWVer;
 	unsigned int nDashBoardSoftVer;
 };
-
-
 
 struct KxDev_Status_
 {
@@ -120,7 +123,7 @@ struct KxDevStatusPacketBody_Base
 	double lngPos;
 	double latPos;
 	bool bDriving;
-	unsigned int mileage;   
+	unsigned int mileage;
 	short speed;
 	KxDev_Status_ Status;
 	bool bMiniBatExist;
@@ -138,8 +141,8 @@ struct KxAppDevCtrlOpenLock_OriginMsg
 {
 	unsigned int nDevId;
 	unsigned char devtype;
-	std::time_t  svrTime;
-	int  nUsrId;
+	std::time_t svrTime;
+	int nUsrId;
 	unsigned short nAlowTime;
 	unsigned char nLowestSocP;
 	unsigned int nFarthestDist;
@@ -155,15 +158,17 @@ struct KxWebSvrRegRespPacketBody_OriginMsg
 {
 	unsigned int nSessionId;
 	unsigned char szIV[AES_IV_BLOCK_SIZE];
-	std::time_t  curTime;
+	std::time_t curTime;
 };
 
-struct KxWebSvrHeartBeat {
-	std::time_t  curTime;
+struct KxWebSvrHeartBeat
+{
+	std::time_t curTime;
 	char szHost[32];
 };
 
-struct KxWebSvrHeartBeatResp {
+struct KxWebSvrHeartBeatResp
+{
 	unsigned int ntotalDevCount;
 	std::time_t svrStartTime;
 };

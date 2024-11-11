@@ -55,8 +55,9 @@ public:
 
   void close()
   {
-    asio::post(io_context_, [this]()
-               { socket_.close(); });
+    socket_.close();
+    // asio::post(io_context_, [this]()
+    //            { socket_.close(); });
   }
 
   unsigned int getSessionId()
@@ -67,7 +68,8 @@ public:
   {
     m_nDevId = id;
   }
-  unsigned int getDevId(){
+  unsigned int getDevId()
+  {
     return m_nDevId;
   }
 
@@ -140,8 +142,6 @@ private:
                                onHanleMsg();
                              }
                            }
-                           else
-                             do_read_header();
                          }
                          else
                          {
@@ -150,6 +150,7 @@ private:
                        }
                        else
                        {
+                         std::cout << "socket Read Header error, closed. " << ec.message() << std::endl;
                          socket_.close();
                        }
                      });
@@ -192,11 +193,14 @@ private:
                          {
                            onHanleMsg();
                          }
-
-                         do_read_header();
+                         else
+                         {
+                          do_read_header();
+                         }
                        }
                        else
                        {
+                         std::cout << "socket Read Body error, closed. " << ec.message() << std::endl;
                          socket_.close();
                        }
                      });
@@ -260,6 +264,7 @@ private:
     {
       std::cout << "RespCode: " << read_msg_.getRespCode() << std::endl;
     }
+    do_read_header();
     switch (msg_h.nMsgId)
     {
     case 1001:

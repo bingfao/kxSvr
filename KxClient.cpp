@@ -61,6 +61,34 @@ int main(int argc, char *argv[])
         msg_b.nMsgId = 1002;
         msg_b.nMsgBodyLen = sizeof(KxDevStatusPacketBody_Base);
         KxDevStatusPacketBody_Base tbody;
+
+        KxDevStatusPacketBody_Base *pDevStatus = &tbody;
+        pDevStatus->nDevType = 1;
+        pDevStatus->nProtocolFlag = 1;
+        pDevStatus->lngPos = 121.54409;
+        pDevStatus->latPos = 31.22114;
+        pDevStatus->mileage = 36 * c.getDevId();
+        // pDevStatus->bDriving = 1;
+        // pDevStatus->speed = 4.8*nDevId;
+        pDevStatus->bMiniBatExist = true;
+        strcpy_s(pDevStatus->szMiniBatteryId, "EEAD2002024991");
+        pDevStatus->miniBatteryStatus.socPercent = 82;
+        pDevStatus->miniBatteryStatus.voltage = 1320;
+        pDevStatus->seriesCount = 1;
+        pDevStatus->batteryExist = true;
+        pDevStatus->chargeFlag = 0;
+        strcpy_s(pDevStatus->szBatteryId, "FFAD2002024991");
+        pDevStatus->batteryStatus.socPercent = 90;
+        pDevStatus->batteryStatus.voltage = 5440;
+        pDevStatus->batteryStatus.temp = 3200;
+
+        pDevStatus->batteryStatus.current = 0;
+
+        pDevStatus->Status.lockStatus = 0x0D;
+        pDevStatus->Status.lightStatus = 0x05;
+        pDevStatus->Status.sensorStatus = 0x06;
+        pDevStatus->Status.brakeStatus = 0x33;
+
         nHeaderExtra[0] = c.getDevId();
         nHeaderExtra[1] = c.getSessionId();
         auto msg = std::make_shared<KxMsgPacket_Basic>(msg_b, nHeaderExtra, (unsigned char *)&tbody, true);

@@ -390,7 +390,7 @@ HttpResponse采用json形式返回
 
 
 ## 车辆开锁
-/openLock
+/devOpenLock
 
 httpRequest
   - type          //type不参与计算hash

@@ -9,7 +9,7 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${fileDirname}\\${fileBasenameNoExtension}.exe",
-            "args": ["127.0.0.1","10086"],
+            "args": ["175.24.207.98","10086"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [],
