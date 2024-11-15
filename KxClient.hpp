@@ -55,9 +55,9 @@ public:
 
   void close()
   {
-    socket_.close();
-    // asio::post(io_context_, [this]()
-    //            { socket_.close(); });
+    // socket_.close();
+    asio::post(io_context_, [this]()
+               { socket_.close(); });
   }
 
   unsigned int getSessionId()
@@ -113,6 +113,7 @@ private:
                      {
                        if (!ec)
                        {
+                         bool bDone(false);
                          bool bRecvLenOk = length == sizeof(KxMsgHeader_Base) + 4;
                          if (bRecvLenOk)
                          {
@@ -136,16 +137,17 @@ private:
                            if (bOk)
                            {
                              if (read_msg_.getBodyLen())
+                             {
                                do_read_body();
+                               bDone = true;
+                             }
                              else
                              {
                                onHanleMsg();
                              }
                            }
-                           else
-                             do_read_header();
                          }
-                         else
+                         if (!bDone)
                          {
                            do_read_header();
                          }
@@ -195,10 +197,7 @@ private:
                          {
                            onHanleMsg();
                          }
-                         else
-                         {
-                           do_read_header();
-                         }
+                         do_read_header();
                        }
                        else
                        {
@@ -267,7 +266,6 @@ private:
     {
       std::cout << "RespCode: " << read_msg_.getRespCode() << std::endl;
     }
-    do_read_header();
     switch (msg_h.nMsgId)
     {
     case 1001:

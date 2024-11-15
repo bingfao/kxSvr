@@ -13,15 +13,18 @@ wx小程序通过https，调用webSvr接口，查看dev的状态、事件等信�
 httpRequest
   - type          
     - 1 wx小程序
-    - 2 独立App   
-  - usrCode   
+    - 2 独立App 
+  - usrOpenid   可选   wx小程序已获取到openid后，优先填入此，
+  - usrCode     可选
     - 对wx小程序  是wx登录返回的code , 系统后台数据库记录openid,uuid、phoneNum,这3个字段关联匹配，均可作为用户唯一标识
-  - timestamp
+- timestamp
+
 
 HttpResponse采用json形式返回
   成功时
   - usrId
   - usrSessionId
+  - nickname
   - devList
     - devId
     - devType
@@ -29,40 +32,46 @@ HttpResponse采用json形式返回
   - errCode 0
   失败时
   - errCode
-    - 0xff  对应未完成手机号关联的用户
+    - 0xff  参数错误
+    - 10000 对应未完成手机号关联的用户
     - 10001 调用微信服务接口失败
   - errMsg
   - openid  
   - unionid
 
 
-## 获取用户手机号注册
+## 用户注册
 /usrRegister
 
 httpRequest
   - type
     - 1 wx小程序
     - 2 独立App
-  - usrCode
-    - 对wx小程序  是wx登录返回的code,系统基于此查询用户的openid
   - usrOpenid
     - 仅对wx小程序，系统此时不需要再次查询用户openid
   - usrUUid
     - 可选，仅对wx小程序
-  - authCode   
+  - mobilePhone   用户手机号，用户输入的
+  - authCode      对于调用微信的手机号快速验证组件，提供的code
     - 对wx小程序  是wx小程序点击获取用户手机号返回的code , 系统基于此来查找该用户手机号等信息
+  - nickname
   - timestamp
 
 HttpResponse采用json形式返回
   - usrId
   - usrSessionId
   - errCode
-    - 0xff  对应未完成手机号关联的用户
+    - 0xff    参数错误
+    - 10001   调用微信服务接口获取手机号失败 
   - errMsg
 
 
+
+
+
+
 **重要说明**
-  **仅usrLogin和usrRegister返回usrSessionId,usrSessionId的有效时长24h,之后需重新login获取**
+  **仅usrLogin和usrRegister 返回usrSessionId,usrSessionId的有效时长24h,之后需重新login获取**
   **后续其他报文req中，仅包含usrId,但crc部分有usrSessionId参与计算得出，svr基于此校验报文**
 
 ## 获取用户可使用的车辆

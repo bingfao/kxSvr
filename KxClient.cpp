@@ -15,9 +15,9 @@ int main(int argc, char *argv[])
 {
   try
   {
-    if (argc != 3)
+    if (argc != 4)
     {
-      std::cerr << "Usage: KxClient <host> <port>\n";
+      std::cerr << "Usage: KxClient <host> <port> <devid>\n";
       return 1;
     }
 
@@ -25,6 +25,9 @@ int main(int argc, char *argv[])
 
     tcp::resolver resolver(io_context);
     auto endpoints = resolver.resolve(argv[1], argv[2]);
+
+    int nDevId = std::atoi(argv[3]);
+
     KxClient c(io_context, endpoints);
 
     std::thread t([&io_context]()
@@ -33,6 +36,7 @@ int main(int argc, char *argv[])
     unsigned int nHeaderExtra[2] = {0};
     bool bExit = false;
     std::string str_input;
+    int nSocP = 64;
     while (true)
     {
       std::cout << "input q to exit" << std::endl;
@@ -46,7 +50,7 @@ int main(int argc, char *argv[])
       }
       else if (str_input == "1" || str_input == "1001")
       {
-        c.setDevId(10001);
+        c.setDevId(nDevId);
         msg_b.nMsgId = 1001;
         msg_b.nMsgBodyLen = sizeof(KxDevRegPacketBody);
         KxDevRegPacketBody tbody;
@@ -76,9 +80,12 @@ int main(int argc, char *argv[])
         pDevStatus->miniBatteryStatus.voltage = 1320;
         pDevStatus->seriesCount = 1;
         pDevStatus->batteryExist = true;
-        pDevStatus->chargeFlag = 0;
+        if (nSocP < 80)
+          pDevStatus->chargeFlag = 1;
+        else
+          pDevStatus->chargeFlag = 0;
         strcpy_s(pDevStatus->szBatteryId, "FFAD2002024991");
-        pDevStatus->batteryStatus.socPercent = 90;
+        pDevStatus->batteryStatus.socPercent = nSocP++;
         pDevStatus->batteryStatus.voltage = 5440;
         pDevStatus->batteryStatus.temp = 3200;
 
@@ -97,12 +104,12 @@ int main(int argc, char *argv[])
       }
       else if (str_input == "1004")
       {
-        c.setDevId(10001);
+        c.setDevId(nDevId);
         msg_b.nMsgId = 1004;
         msg_b.nMsgBodyLen = sizeof(KxDevUsedTrafficPacketBody);
         KxDevUsedTrafficPacketBody tbody;
         tbody.nDevType = 1;
-        tbody.nProtocolFlag =1;
+        tbody.nProtocolFlag = 1;
         tbody.nUsedTraffic = 3000;
         nHeaderExtra[0] = c.getDevId();
         nHeaderExtra[1] = c.getSessionId();

@@ -102,6 +102,11 @@ respcode为0时：
 ## 设备状态
 - MsgId  1002
 
+**车辆电气锁开关状态变化以及车辆充电状态变化时，即刻上传新的状态**
+
+设备位置未发生明显变化（距离<1m）时，每5min上传一次设备状态信息
+当设备位置发生明显变化时，每1min(待实测评估)上传一次设备状态信息
+
 ### 包体部分
 - DevType  设备类型 1Byte
     - 1   国标电动自行车
@@ -165,8 +170,7 @@ respcode为0时：
         - voltage       2Byte           u16  每串电压值*100  
         - temp          2Byte           i16  每串温度值*100, 如无温度传感器，填0xFFFF  
 
-设备位置未发生明显变化（距离<1m）时，每5min上传一次设备状态信息
-当设备位置发生明显变化时，每1min(待实测评估)上传一次设备状态信息
+
 
 ### 应答包
 - RespCode
@@ -373,7 +377,7 @@ respcode为0时：
 
 
 
-## 文件下发
+## 文件头部数据下发
 - MsgId  2020
 - CryptFlag 1
 
@@ -387,7 +391,7 @@ respcode为0时：
     - FileName        32Byte  char utf-8 
     - FileLen         4Byte  
     - FileMD5         16Byte
-    - FileData        
+    - FileHeadData    小于4k的数据，当文件数据大于4k时，仅填入4k长度数据，剩余数据由2021报文依次下发    
 - nDataLen  //原始数据的长度
 - crc16     //原始数据的crc16
 
@@ -397,9 +401,31 @@ respcode为0时：
     - 1   拒绝
 
 
+## 文件数据下发
+- MsgId  2021
+- CryptFlag 0
+
+**设备接收到全部文件数据后，校验md5, 完成本次文件数据下发**
+
+### 包体部分 
+
+- devSessionId    4Byte
+- FileType        1Byte 
+- FileName        32Byte  char utf-8 
+- FileDataPos     4Byte   本包数据在文件数据的起始位置
+- nDataLen        2Byte   数据的长度  每包不超过20k 
+- FileHData          
+- crc16           包体部分从FileDataPos到FileData的crc16
+
+### 应答包
+- RespCode
+    - 0   Ok
+    - 1   拒绝
+
+
 ## 授权解锁设备
 
-- MsgId  2021
+- MsgId  2031
 - CryptFlag 1
 
 ### 包体部分 
@@ -422,7 +448,7 @@ respcode为0时：
 
 
 ## 禁用某一解锁设备
-- MsgId  2022
+- MsgId  2032
 - CryptFlag 1
 
 ### 包体部分 
