@@ -362,11 +362,15 @@ respcode为0时：
 ### 包体部分 
 **注意：包体部分是AES之后的数据，设备端需解密后验证时间和SessionId后处理**
 - 加密部分报文
-    - svrtime         8Byte timestamp  localtime 
-    - devSessionId    4Byte
-    - shutdownMotor   1Byte  是否关闭电驱
-    - maxSpeed        2Byte  限制的最高速度, 以m/s*100
-    - warningVoice    1Byte  报警音效
+    - svrtime          8Byte timestamp  localtime 
+    - devSessionId     4Byte
+    - MotorPowerFlag   1Byte  
+        - 0     关闭电机输出
+        - 1     限制功率在100W
+        - 2     限制功率输出在200W
+        - 0xFF  不限制功率
+    - maxSpeed         2Byte  限制的最高速度, 以m/s*100
+    - warningVoice     1Byte  报警音效
 - nDataLen  //原始数据的长度
 - crc16     //原始数据的crc16
 

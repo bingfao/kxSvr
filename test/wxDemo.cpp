@@ -258,7 +258,7 @@ void thread_sendrecv(SOCKET &client_sock)
                                     pMsgHeader->nCrc16 = crc16_ccitt((unsigned char *)pMsgHeader, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
                                     pMsgHeader->nDevId = 0xEEFF;
 
-                                    KxAppDevCtrlOpenLock_OriginMsg openlock_msg;
+                                    KxAppDevCtrlOpenLock_OrMsg openlock_msg;
                                     openlock_msg.nDevId = 10001;
                                     openlock_msg.devtype = 1;
                                     openlock_msg.nUsrId = 1;

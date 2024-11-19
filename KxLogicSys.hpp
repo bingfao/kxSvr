@@ -32,7 +32,10 @@ private:
     void DevRegMsgCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic &msgPacket);
     void DevStatusMsgCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic& msgPacket);
 	void DevUsedTrafficMsgCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic& msgPacket);
-	void AppDevCtrlMsgCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic& msgPacket);
+	void AppCtrlOpenLockMsgCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic& msgPacket);
+	void AppCtrlLockDevMsgCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic& msgPacket);
+	void AppCtrlDevGuardMsgCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic& msgPacket);
+
 	void WebSvrRegMsgCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic& msgPacket);
 	void WebSvrHeartBeatMsgCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic& msgPacket);
 	std::thread m_worker_thread;

@@ -429,6 +429,7 @@ httpRequest
   - usrId 
   - devId
   - devType
+  **以下项不参与计算hash**
   - voice           关锁音效  number
   - hash
 
@@ -437,7 +438,7 @@ HttpResponse采用json形式返回
   - errMsg
 
 ## 防盗锁定
-/lockDevOnGuard
+/devGuard
 
 httpRequest
   - type          //type不参与计算hash
@@ -446,7 +447,8 @@ httpRequest
   - usrId 
   - devId
   - devType
-  - shutdownMotor   是否关闭电驱
+  **以下项不参与计算hash**
+  - MotorPowerFlag  电驱控制
   - maxSpeed        限制的最高速度, 以m/s*100
   - warningVoice    报警音效
   - hash
@@ -575,13 +577,17 @@ webSvr收到后，后续报文，使用该IV来做AES计算
 
 **注意：包体部分是AES之后的数据**
 - 加密部分报文
-  - devId           4Byte
-  - devtype         1Byte  
-  - timestamp       8Byte
-  - usrId           4Byte
-  - shutdownMotor   1Byte  是否关闭电驱
-  - maxSpeed        2Byte  限制的最高速度, 以m/s*100
-  - warningVoice    1Byte  报警音效
+  - devId            4Byte
+  - devtype          1Byte  
+  - timestamp        8Byte
+  - usrId            4Byte
+  - MotorPowerFlag   1Byte  
+    - 0     关闭电机输出
+    - 1     限制功率在100W
+    - 2     限制功率输出在200W
+    - 0xFF  不限制功率
+  - maxSpeed         2Byte  限制的最高速度, 以m/s*100
+  - warningVoice     1Byte  报警音效
 - nDataLen  //原始数据的长度
 - crc16     //原始数据的crc16
 

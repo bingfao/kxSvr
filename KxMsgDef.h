@@ -20,10 +20,15 @@ const int MSG_DEV_STATUS = 1002;
 const int MSG_DEV_USED_TRAFFIC = 1004;
 
 const int MSG_DEVCTRL_OPENLOCK = 2001;
+const int MSG_DEVCTRL_LOCKDEV = 2002;
+const int MSG_DEVCTRL_DEVGUARD = 2003;
 
 const int MSG_WEBSVR_REGISTER = 9001;
 const int MSG_WEBSVR_HEARTBEAT = 9002;
+
 const int MSG_APP_DEVCTRL_OPENLOCK = 4001;
+const int MSG_APP_DEVCTRL_LOCKDEV = 4002;
+const int MSG_APP_DEVCTRL_DEVGUARD = 4003;
 
 const unsigned int AES_IV_BLOCK_SIZE = 16;
 
@@ -32,7 +37,7 @@ const unsigned int AES_IV_BLOCK_SIZE = 16;
 struct KxMsgHeader_Base
 {
 	KxMsgHeader_Base()
-		: nMsgId(0), nTypeFlag(0), nSeqNum(0), nMsgBodyLen(0),nReserve{0}, nCryptFlag(0), nCrc16(0)
+		: nMsgId(0), nTypeFlag(0), nSeqNum(0), nMsgBodyLen(0), nReserve{0}, nCryptFlag(0), nCrc16(0)
 	{
 	}
 	unsigned short nMsgId;
@@ -50,8 +55,7 @@ public:
 	unsigned int nRespCode;
 
 	KxMsgRespHeader()
-		: KxMsgHeader_Base()
-		, nRespCode(0)
+		: KxMsgHeader_Base(), nRespCode(0)
 	{
 		nTypeFlag = cst_Resp_MsgType;
 	}
@@ -64,8 +68,7 @@ public:
 	unsigned int nSessionId; // 由Svr 分配的sessionId
 
 	KxMsgReqHeader()
-		: KxMsgHeader_Base()
-		, nDevId(0), nSessionId(0)
+		: KxMsgHeader_Base(), nDevId(0), nSessionId(0)
 	{
 		nTypeFlag = 0;
 	}
@@ -146,7 +149,7 @@ struct KxDevUsedTrafficPacketBody
 	unsigned int nUsedTraffic;
 };
 
-struct KxAppDevCtrlOpenLock_OriginMsg
+struct KxAppDevCtrlOpenLock_OrMsg
 {
 	unsigned int nDevId;
 	unsigned char devtype;
@@ -155,6 +158,51 @@ struct KxAppDevCtrlOpenLock_OriginMsg
 	unsigned short nAlowTime;
 	unsigned char nLowestSocP;
 	unsigned int nFarthestDist;
+};
+
+struct KxAppDevCtrlLockDev_OrMsg
+{
+	unsigned int nDevId;
+	unsigned char devtype;
+	std::time_t svrTime;
+	int nUsrId;
+	unsigned char nVoiceIndex;
+};
+
+struct KxAppDevCtrlDevGuard_OrMsg
+{
+	unsigned int nDevId;
+	unsigned char devtype;
+	std::time_t svrTime;
+	int nUsrId;
+	unsigned char MotorPowerFlag;
+	unsigned char nMaxSpeed;
+	unsigned char nVoiceIndex;
+};
+
+struct KxDevCtrlOpenLock_OrMsg
+{
+	std::time_t svrTime;
+	unsigned int nSessionId;
+	unsigned short nAlowTime;
+	unsigned char nLowestSocP;
+	unsigned int nFarthestDist;
+};
+
+struct KxDevCtrlLockDev_OrMsg
+{
+	std::time_t svrTime;
+	unsigned int nSessionId;
+	unsigned char nVoiceIndex;
+};
+
+struct KxDevCtrlDevGuard_OrMsg
+{
+	std::time_t svrTime;
+	unsigned int nSessionId;
+	unsigned char MotorPowerFlag;
+	unsigned char nMaxSpeed;
+	unsigned char nVoiceIndex;
 };
 
 struct KxDevRegRespPacketBody

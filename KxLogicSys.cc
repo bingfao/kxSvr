@@ -100,8 +100,13 @@ void KxBusinessLogicMgr::RegisterCallBacks()
 													 std::placeholders::_1, std::placeholders::_2);
 	m_map_FunCallbacks[MSG_DEV_STATUS] = std::bind(&KxBusinessLogicMgr::DevStatusMsgCallBack, this,
 												   std::placeholders::_1, std::placeholders::_2);
-	m_map_FunCallbacks[MSG_APP_DEVCTRL_OPENLOCK] = std::bind(&KxBusinessLogicMgr::AppDevCtrlMsgCallBack, this,
+	m_map_FunCallbacks[MSG_APP_DEVCTRL_OPENLOCK] = std::bind(&KxBusinessLogicMgr::AppCtrlOpenLockMsgCallBack, this,
 															 std::placeholders::_1, std::placeholders::_2);
+	m_map_FunCallbacks[MSG_APP_DEVCTRL_LOCKDEV] = std::bind(&KxBusinessLogicMgr::AppCtrlLockDevMsgCallBack, this,
+															std::placeholders::_1, std::placeholders::_2);
+	m_map_FunCallbacks[MSG_APP_DEVCTRL_DEVGUARD] = std::bind(&KxBusinessLogicMgr::AppCtrlDevGuardMsgCallBack, this,
+															std::placeholders::_1, std::placeholders::_2);
+
 	m_map_FunCallbacks[MSG_WEBSVR_REGISTER] = std::bind(&KxBusinessLogicMgr::WebSvrRegMsgCallBack, this,
 														std::placeholders::_1, std::placeholders::_2);
 	m_map_FunCallbacks[MSG_WEBSVR_HEARTBEAT] = std::bind(&KxBusinessLogicMgr::WebSvrHeartBeatMsgCallBack, this,
@@ -407,7 +412,7 @@ void KxBusinessLogicMgr::DevUsedTrafficMsgCallBack(std::shared_ptr<KxDevSession>
 #endif
 }
 
-void KxBusinessLogicMgr::AppDevCtrlMsgCallBack(std::shared_ptr<KxDevSession> session, const KxMsgPacket_Basic &msgPacket)
+void KxBusinessLogicMgr::AppCtrlLockDevMsgCallBack(std::shared_ptr<KxDevSession> session, const KxMsgPacket_Basic &msgPacket)
 {
 	auto msgHeader = msgPacket.getMsgHeader();
 	auto pMsgBody = msgPacket.getMsgBodyBuf();
@@ -417,11 +422,9 @@ void KxBusinessLogicMgr::AppDevCtrlMsgCallBack(std::shared_ptr<KxDevSession> ses
 	bool brt = session->checkAESPacketData(pMsgBody, msgHeader.nMsgBodyLen, originMsgBody, nMsgBufLen);
 	if (brt && originMsgBody && nMsgBufLen)
 	{
-		KxAppDevCtrlOpenLock_OriginMsg *pOriginMsg = (KxAppDevCtrlOpenLock_OriginMsg *)originMsgBody;
+		KxAppDevCtrlLockDev_OrMsg *pOriginMsg = (KxAppDevCtrlLockDev_OrMsg *)originMsgBody;
 
-		const std::chrono::time_point<std::chrono::system_clock> tp_now =
-			std::chrono::system_clock::now();
-		const std::time_t t_c = std::chrono::system_clock::to_time_t(tp_now);
+		const std::time_t t_c = std::time(nullptr);
 		session->setLastTime(t_c);
 		// 先发送到dev
 		// 查找对应的dev 的 session
@@ -430,15 +433,206 @@ void KxBusinessLogicMgr::AppDevCtrlMsgCallBack(std::shared_ptr<KxDevSession> ses
 		auto devSession = session->getDevSession(nDevId);
 		if (devSession)
 		{
+			// 需要做加密
+			KxMsgHeader_Base msgDevReqHead_base;
+			auto msgHeader = msgPacket.getMsgHeader();
+			msgDevReqHead_base.nMsgId = MSG_DEVCTRL_LOCKDEV;
+			msgDevReqHead_base.nSeqNum = msgHeader.nSeqNum;
+			msgDevReqHead_base.nTypeFlag = 0;
+			msgDevReqHead_base.nMsgBodyLen = 0;
+			KxDevCtrlLockDev_OrMsg orimsg;
+			orimsg.svrTime = pOriginMsg->svrTime;
+			orimsg.nSessionId = devSession->GetSessionId();
+			orimsg.nVoiceIndex = pOriginMsg->nVoiceIndex;
+			unsigned char msgBody[256] = {0};
+			unsigned int nBufLen = sizeof(msgBody);
+			unsigned char *pOrDevMsg = (unsigned char *)&orimsg;
+			brt = devSession->AES_encrypt(pOrDevMsg, sizeof(orimsg), msgBody, nBufLen);
+			if (brt)
+			{
+				unsigned int *pData = (unsigned int *)(msgBody + nBufLen);
+				*pData = sizeof(orimsg);
+				nBufLen += sizeof(unsigned int);
+				unsigned short nCrc16 = crc16_ccitt(pOrDevMsg, sizeof(orimsg));
+				*(unsigned short *)(msgBody + nBufLen) = nCrc16;
+				nBufLen += sizeof(unsigned short);
+				msgDevReqHead_base.nMsgBodyLen = nBufLen;
+				msgDevReqHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevReqHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+				auto msgP = std::make_shared<KxMsgPacket_Basic>(msgPacket);
+				devSession->SendMsgPacket(msgDevReqHead_base, msgBody, true, std::make_shared<KxBussinessLogicNode>(session, msgP));
+			}
+			else
+			{
+				// cst_nResp_Code_SEND_DEV_ERR
+				KxMsgHeader_Base msgRespHead_base;
+				auto msgHeader = msgPacket.getMsgHeader();
+				msgRespHead_base.nMsgId = msgHeader.nMsgId;
+				msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
+				msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
+				msgRespHead_base.nMsgBodyLen = 0;
+				msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+				session->SendRespPacket(msgRespHead_base, cst_nResp_Code_SEND_DEV_ERR, nullptr, false);
+			}
+		}
+		else
+		{
 			KxMsgHeader_Base msgRespHead_base;
 			auto msgHeader = msgPacket.getMsgHeader();
-			msgRespHead_base.nMsgId = MSG_DEVCTRL_OPENLOCK;
+			msgRespHead_base.nMsgId = msgHeader.nMsgId;
 			msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
-			msgRespHead_base.nTypeFlag = 0;
+			msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
 			msgRespHead_base.nMsgBodyLen = 0;
 			msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
-			auto msgP = std::make_shared<KxMsgPacket_Basic>(msgPacket);
-			devSession->SendMsgPacket(msgRespHead_base, nullptr, false, std::make_shared<KxBussinessLogicNode>(session, msgP));
+			session->SendRespPacket(msgRespHead_base, cst_nResp_Code_DEV_OFFLINE, nullptr, false);
+		}
+		delete[] originMsgBody;
+		originMsgBody = nullptr;
+	}
+}
+
+void KxBusinessLogicMgr::AppCtrlDevGuardMsgCallBack(std::shared_ptr<KxDevSession> session, const KxMsgPacket_Basic &msgPacket)
+{
+	auto msgHeader = msgPacket.getMsgHeader();
+	auto pMsgBody = msgPacket.getMsgBodyBuf();
+	// 先解密
+	unsigned char *originMsgBody = nullptr;
+	unsigned int nMsgBufLen = 0;
+	bool brt = session->checkAESPacketData(pMsgBody, msgHeader.nMsgBodyLen, originMsgBody, nMsgBufLen);
+	if (brt && originMsgBody && nMsgBufLen)
+	{
+		KxAppDevCtrlDevGuard_OrMsg *pOriginMsg = (KxAppDevCtrlDevGuard_OrMsg *)originMsgBody;
+
+		const std::time_t t_c = std::time(nullptr);
+		session->setLastTime(t_c);
+		// 先发送到dev
+		// 查找对应的dev 的 session
+
+		unsigned int nDevId = pOriginMsg->nDevId;
+		auto devSession = session->getDevSession(nDevId);
+		if (devSession)
+		{
+			// 需要做加密
+			KxMsgHeader_Base msgDevReqHead_base;
+			auto msgHeader = msgPacket.getMsgHeader();
+			msgDevReqHead_base.nMsgId = MSG_DEVCTRL_LOCKDEV;
+			msgDevReqHead_base.nSeqNum = msgHeader.nSeqNum;
+			msgDevReqHead_base.nTypeFlag = 0;
+			msgDevReqHead_base.nMsgBodyLen = 0;
+			KxDevCtrlDevGuard_OrMsg orimsg;
+			orimsg.svrTime = pOriginMsg->svrTime;
+			orimsg.nSessionId = devSession->GetSessionId();
+			orimsg.MotorPowerFlag = pOriginMsg->MotorPowerFlag;
+			orimsg.nMaxSpeed = pOriginMsg->nMaxSpeed;
+			orimsg.nVoiceIndex = pOriginMsg->nVoiceIndex;
+			unsigned char msgBody[256] = {0};
+			unsigned int nBufLen = sizeof(msgBody);
+			unsigned char *pOrDevMsg = (unsigned char *)&orimsg;
+			brt = devSession->AES_encrypt(pOrDevMsg, sizeof(orimsg), msgBody, nBufLen);
+			if (brt)
+			{
+				unsigned int *pData = (unsigned int *)(msgBody + nBufLen);
+				*pData = sizeof(orimsg);
+				nBufLen += sizeof(unsigned int);
+				unsigned short nCrc16 = crc16_ccitt(pOrDevMsg, sizeof(orimsg));
+				*(unsigned short *)(msgBody + nBufLen) = nCrc16;
+				nBufLen += sizeof(unsigned short);
+				msgDevReqHead_base.nMsgBodyLen = nBufLen;
+				msgDevReqHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevReqHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+				auto msgP = std::make_shared<KxMsgPacket_Basic>(msgPacket);
+				devSession->SendMsgPacket(msgDevReqHead_base, msgBody, true, std::make_shared<KxBussinessLogicNode>(session, msgP));
+			}
+			else
+			{
+				// cst_nResp_Code_SEND_DEV_ERR
+				KxMsgHeader_Base msgRespHead_base;
+				auto msgHeader = msgPacket.getMsgHeader();
+				msgRespHead_base.nMsgId = msgHeader.nMsgId;
+				msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
+				msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
+				msgRespHead_base.nMsgBodyLen = 0;
+				msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+				session->SendRespPacket(msgRespHead_base, cst_nResp_Code_SEND_DEV_ERR, nullptr, false);
+			}
+		}
+		else
+		{
+			KxMsgHeader_Base msgRespHead_base;
+			auto msgHeader = msgPacket.getMsgHeader();
+			msgRespHead_base.nMsgId = msgHeader.nMsgId;
+			msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
+			msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
+			msgRespHead_base.nMsgBodyLen = 0;
+			msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+			session->SendRespPacket(msgRespHead_base, cst_nResp_Code_DEV_OFFLINE, nullptr, false);
+		}
+		delete[] originMsgBody;
+		originMsgBody = nullptr;
+	}
+}
+
+void KxBusinessLogicMgr::AppCtrlOpenLockMsgCallBack(std::shared_ptr<KxDevSession> session, const KxMsgPacket_Basic &msgPacket)
+{
+	auto msgHeader = msgPacket.getMsgHeader();
+	auto pMsgBody = msgPacket.getMsgBodyBuf();
+	// 先解密
+	unsigned char *originMsgBody = nullptr;
+	unsigned int nMsgBufLen = 0;
+	bool brt = session->checkAESPacketData(pMsgBody, msgHeader.nMsgBodyLen, originMsgBody, nMsgBufLen);
+	if (brt && originMsgBody && nMsgBufLen)
+	{
+		KxAppDevCtrlOpenLock_OrMsg *pOriginMsg = (KxAppDevCtrlOpenLock_OrMsg *)originMsgBody;
+
+		const std::time_t t_c = std::time(nullptr);
+		session->setLastTime(t_c);
+		// 先发送到dev
+		// 查找对应的dev 的 session
+
+		unsigned int nDevId = pOriginMsg->nDevId;
+		auto devSession = session->getDevSession(nDevId);
+		if (devSession)
+		{
+			// 需要做加密
+			KxMsgHeader_Base msgDevReqHead_base;
+			auto msgHeader = msgPacket.getMsgHeader();
+			msgDevReqHead_base.nMsgId = MSG_DEVCTRL_OPENLOCK;
+			msgDevReqHead_base.nSeqNum = msgHeader.nSeqNum;
+			msgDevReqHead_base.nTypeFlag = 0;
+			msgDevReqHead_base.nMsgBodyLen = 0;
+			KxDevCtrlOpenLock_OrMsg orimsg;
+			orimsg.nAlowTime = pOriginMsg->nAlowTime;
+			orimsg.nFarthestDist = pOriginMsg->nFarthestDist;
+			orimsg.nLowestSocP = pOriginMsg->nLowestSocP;
+			orimsg.svrTime = pOriginMsg->svrTime;
+			orimsg.nSessionId = devSession->GetSessionId();
+			unsigned char msgBody[256] = {0};
+			unsigned int nBufLen = sizeof(msgBody);
+			unsigned char *pOrDevMsg = (unsigned char *)&orimsg;
+			brt = devSession->AES_encrypt(pOrDevMsg, sizeof(orimsg), msgBody, nBufLen);
+			if (brt)
+			{
+				unsigned int *pData = (unsigned int *)(msgBody + nBufLen);
+				*pData = sizeof(orimsg);
+				nBufLen += sizeof(unsigned int);
+				unsigned short nCrc16 = crc16_ccitt(pOrDevMsg, sizeof(orimsg));
+				*(unsigned short *)(msgBody + nBufLen) = nCrc16;
+				nBufLen += sizeof(unsigned short);
+				msgDevReqHead_base.nMsgBodyLen = nBufLen;
+				msgDevReqHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevReqHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+				auto msgP = std::make_shared<KxMsgPacket_Basic>(msgPacket);
+				devSession->SendMsgPacket(msgDevReqHead_base, msgBody, true, std::make_shared<KxBussinessLogicNode>(session, msgP));
+			}
+			else
+			{
+				// cst_nResp_Code_SEND_DEV_ERR
+				KxMsgHeader_Base msgRespHead_base;
+				auto msgHeader = msgPacket.getMsgHeader();
+				msgRespHead_base.nMsgId = msgHeader.nMsgId;
+				msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
+				msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
+				msgRespHead_base.nMsgBodyLen = 0;
+				msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+				session->SendRespPacket(msgRespHead_base, cst_nResp_Code_SEND_DEV_ERR, nullptr, false);
+			}
 		}
 		else
 		{

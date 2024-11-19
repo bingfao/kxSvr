@@ -91,7 +91,10 @@ int main(int argc, char *argv[])
 
         pDevStatus->batteryStatus.current = 0;
 
-        pDevStatus->Status.lockStatus = 0x0D;
+        if (nSeqNum % 2 == 0)
+          pDevStatus->Status.lockStatus = 0x0C;
+        else
+          pDevStatus->Status.lockStatus = 0x0D;
         pDevStatus->Status.lightStatus = 0x05;
         pDevStatus->Status.sensorStatus = 0x06;
         pDevStatus->Status.brakeStatus = 0x33;
@@ -169,7 +172,7 @@ int main(int argc, char *argv[])
         msg_b.nMsgId = 4001;
         msg_b.nCryptFlag = 1;
 
-        KxAppDevCtrlOpenLock_OriginMsg openlock_msg;
+        KxAppDevCtrlOpenLock_OrMsg openlock_msg;
         openlock_msg.nDevId = 10001;
         openlock_msg.devtype = 1;
         openlock_msg.nUsrId = 1;
