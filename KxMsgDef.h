@@ -22,6 +22,8 @@ const int MSG_DEV_USED_TRAFFIC = 1004;
 const int MSG_DEVCTRL_OPENLOCK = 2001;
 const int MSG_DEVCTRL_LOCKDEV = 2002;
 const int MSG_DEVCTRL_DEVGUARD = 2003;
+const int MSG_DEVCTRL_OPENELECLOCK = 2004;
+const int MSG_DEVCTRL_LIGHT = 2005;
 
 const int MSG_WEBSVR_REGISTER = 9001;
 const int MSG_WEBSVR_HEARTBEAT = 9002;
@@ -29,6 +31,8 @@ const int MSG_WEBSVR_HEARTBEAT = 9002;
 const int MSG_APP_DEVCTRL_OPENLOCK = 4001;
 const int MSG_APP_DEVCTRL_LOCKDEV = 4002;
 const int MSG_APP_DEVCTRL_DEVGUARD = 4003;
+const int MSG_APP_DEVCTRL_OPENELECLOCK = 4004;
+const int MSG_APP_DEVCTRL_LIGHT = 4005;
 
 const unsigned int AES_IV_BLOCK_SIZE = 16;
 
@@ -180,6 +184,16 @@ struct KxAppDevCtrlDevGuard_OrMsg
 	unsigned char nVoiceIndex;
 };
 
+struct KxAppDevCtrlElecLock_OrMsg
+{
+	unsigned int nDevId;
+	unsigned char devtype;
+	std::time_t svrTime;
+	int nUsrId;
+	unsigned char lockFlag;
+	unsigned char nVoiceIndex;
+};
+
 struct KxDevCtrlOpenLock_OrMsg
 {
 	std::time_t svrTime;
@@ -204,6 +218,15 @@ struct KxDevCtrlDevGuard_OrMsg
 	unsigned char nMaxSpeed;
 	unsigned char nVoiceIndex;
 };
+
+struct KxDevCtrlElecLock_OrMsg
+{
+	std::time_t svrTime;
+	unsigned int nSessionId;
+	unsigned char lockFlag;
+	unsigned char nVoiceIndex;
+};
+
 
 struct KxDevRegRespPacketBody
 {

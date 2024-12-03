@@ -105,7 +105,9 @@ void KxBusinessLogicMgr::RegisterCallBacks()
 	m_map_FunCallbacks[MSG_APP_DEVCTRL_LOCKDEV] = std::bind(&KxBusinessLogicMgr::AppCtrlLockDevMsgCallBack, this,
 															std::placeholders::_1, std::placeholders::_2);
 	m_map_FunCallbacks[MSG_APP_DEVCTRL_DEVGUARD] = std::bind(&KxBusinessLogicMgr::AppCtrlDevGuardMsgCallBack, this,
-															std::placeholders::_1, std::placeholders::_2);
+															 std::placeholders::_1, std::placeholders::_2);
+	m_map_FunCallbacks[MSG_APP_DEVCTRL_OPENELECLOCK] = std::bind(&KxBusinessLogicMgr::AppCtrlDevElecLockCallBack, this,
+																 std::placeholders::_1, std::placeholders::_2);
 
 	m_map_FunCallbacks[MSG_WEBSVR_REGISTER] = std::bind(&KxBusinessLogicMgr::WebSvrRegMsgCallBack, this,
 														std::placeholders::_1, std::placeholders::_2);
@@ -602,6 +604,84 @@ void KxBusinessLogicMgr::AppCtrlOpenLockMsgCallBack(std::shared_ptr<KxDevSession
 			orimsg.nAlowTime = pOriginMsg->nAlowTime;
 			orimsg.nFarthestDist = pOriginMsg->nFarthestDist;
 			orimsg.nLowestSocP = pOriginMsg->nLowestSocP;
+			orimsg.svrTime = pOriginMsg->svrTime;
+			orimsg.nSessionId = devSession->GetSessionId();
+			unsigned char msgBody[256] = {0};
+			unsigned int nBufLen = sizeof(msgBody);
+			unsigned char *pOrDevMsg = (unsigned char *)&orimsg;
+			brt = devSession->AES_encrypt(pOrDevMsg, sizeof(orimsg), msgBody, nBufLen);
+			if (brt)
+			{
+				unsigned int *pData = (unsigned int *)(msgBody + nBufLen);
+				*pData = sizeof(orimsg);
+				nBufLen += sizeof(unsigned int);
+				unsigned short nCrc16 = crc16_ccitt(pOrDevMsg, sizeof(orimsg));
+				*(unsigned short *)(msgBody + nBufLen) = nCrc16;
+				nBufLen += sizeof(unsigned short);
+				msgDevReqHead_base.nMsgBodyLen = nBufLen;
+				msgDevReqHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevReqHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+				auto msgP = std::make_shared<KxMsgPacket_Basic>(msgPacket);
+				devSession->SendMsgPacket(msgDevReqHead_base, msgBody, true, std::make_shared<KxBussinessLogicNode>(session, msgP));
+			}
+			else
+			{
+				// cst_nResp_Code_SEND_DEV_ERR
+				KxMsgHeader_Base msgRespHead_base;
+				auto msgHeader = msgPacket.getMsgHeader();
+				msgRespHead_base.nMsgId = msgHeader.nMsgId;
+				msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
+				msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
+				msgRespHead_base.nMsgBodyLen = 0;
+				msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+				session->SendRespPacket(msgRespHead_base, cst_nResp_Code_SEND_DEV_ERR, nullptr, false);
+			}
+		}
+		else
+		{
+			KxMsgHeader_Base msgRespHead_base;
+			auto msgHeader = msgPacket.getMsgHeader();
+			msgRespHead_base.nMsgId = msgHeader.nMsgId;
+			msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
+			msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
+			msgRespHead_base.nMsgBodyLen = 0;
+			msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+			session->SendRespPacket(msgRespHead_base, cst_nResp_Code_DEV_OFFLINE, nullptr, false);
+		}
+		delete[] originMsgBody;
+		originMsgBody = nullptr;
+	}
+}
+
+void KxBusinessLogicMgr::AppCtrlDevElecLockCallBack(std::shared_ptr<KxDevSession> session, const KxMsgPacket_Basic& msgPacket)
+{
+	auto msgHeader = msgPacket.getMsgHeader();
+	auto pMsgBody = msgPacket.getMsgBodyBuf();
+	// 先解密
+	unsigned char *originMsgBody = nullptr;
+	unsigned int nMsgBufLen = 0;
+	bool brt = session->checkAESPacketData(pMsgBody, msgHeader.nMsgBodyLen, originMsgBody, nMsgBufLen);
+	if (brt && originMsgBody && nMsgBufLen)
+	{
+		KxAppDevCtrlElecLock_OrMsg *pOriginMsg = (KxAppDevCtrlElecLock_OrMsg *)originMsgBody;
+
+		const std::time_t t_c = std::time(nullptr);
+		session->setLastTime(t_c);
+		// 先发送到dev
+		// 查找对应的dev 的 session
+
+		unsigned int nDevId = pOriginMsg->nDevId;
+		auto devSession = session->getDevSession(nDevId);
+		if (devSession)
+		{
+			// 需要做加密
+			KxMsgHeader_Base msgDevReqHead_base;
+			auto msgHeader = msgPacket.getMsgHeader();
+			msgDevReqHead_base.nMsgId = MSG_DEVCTRL_OPENELECLOCK;
+			msgDevReqHead_base.nSeqNum = msgHeader.nSeqNum;
+			msgDevReqHead_base.nTypeFlag = 0;
+			msgDevReqHead_base.nMsgBodyLen = 0;
+			KxDevCtrlElecLock_OrMsg orimsg;
+			orimsg.lockFlag = pOriginMsg->lockFlag;
 			orimsg.svrTime = pOriginMsg->svrTime;
 			orimsg.nSessionId = devSession->GetSessionId();
 			unsigned char msgBody[256] = {0};

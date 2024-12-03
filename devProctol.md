@@ -130,11 +130,12 @@ respcode为0时：
 - status    工作状态  6Byte
     - lockStuats    1Byte  bit0 电气锁  bit1 座桶锁 bit2 手套箱锁 bit3 头盔锁 bit4 电驱锁  bit取值1 为锁打开
     - lightStatus   2Byte  灯光状态
-        - bit0~1   照明大灯  0b01 开启 0b00 关闭  0b11 故障
-        - bit2~3   示廓灯    0b01 开启 0b00 关闭  0b11 故障
-        - bit4~5   转向灯    0b01 开启左转向灯  0b10 开启右转向灯 0b00 关闭  0b11 故障
-        - bit6~7   双闪灯    0b01 开启 0b00 关闭  0b11 故障
-        - bit8~9   刹车灯    0b01 开启 0b00 关闭  0b11 故障
+        - bit0~1     照明大灯    0b01 开启 0b00 关闭  0b11 故障
+        - bit2~3     照明远光灯  0b01 开启 0b00 关闭  0b11 故障
+        - bit4~5     示廓灯      0b01 开启 0b00 关闭  0b11 故障
+        - bit6~7     转向灯      0b01 开启左转向灯  0b10 开启右转向灯 0b00 关闭  0b11 故障
+        - bit8~9     双闪灯      0b01 开启 0b00 关闭  0b11 故障
+        - bit10~11   刹车灯      0b01 开启 0b00 关闭  0b11 故障
     - sensorStatus  1Byte  传感器状态  
         - bit0 座位传感器  
         - bit1 脚撑传感器 
@@ -371,6 +372,48 @@ respcode为0时：
         - 0xFF  不限制功率
     - maxSpeed         2Byte  限制的最高速度, 以m/s*100
     - warningVoice     1Byte  报警音效
+- nDataLen  //原始数据的长度
+- crc16     //原始数据的crc16
+
+### 应答包
+- RespCode
+    - 0   Ok
+    - 1   拒绝
+
+
+## 打开车辆电控锁
+
+- MsgId  2004
+- CryptFlag 1
+### 包体部分 
+
+**注意：包体部分是AES之后的数据**
+- 加密部分报文
+    - svrtime          8Byte timestamp  localtime 
+    - devSessionId     4Byte
+    - lockFlag         1Byte   
+        - 0x02             座桶锁
+        - 0x04             手套箱锁
+        - 0x08             头盔锁
+- nDataLen  //原始数据的长度
+- crc16     //原始数据的crc16
+
+### 应答包
+- RespCode
+    - 0   Ok
+    - 1   拒绝
+
+## 灯光控制
+
+- MsgId  2005
+- CryptFlag 1
+### 包体部分 
+
+**注意：包体部分是AES之后的数据**
+- 加密部分报文
+    - svrtime          8Byte timestamp  localtime 
+    - devSessionId     4Byte
+    - lightFlag        1Byte  
 - nDataLen  //原始数据的长度
 - crc16     //原始数据的crc16
 

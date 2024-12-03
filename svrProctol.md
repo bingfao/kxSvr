@@ -457,6 +457,29 @@ HttpResponse采用json形式返回
   - errCode
   - errMsg
 
+
+## 打开车辆电控锁
+/devOpenElecLock
+
+httpRequest
+  - type          //type不参与计算hash
+    - 1 wx小程序
+    - 2 独立App  
+  - usrId 
+  - devId
+  - devType
+  **以下项不参与计算hash**
+  - lockFlag        
+    - 0x02             座桶锁
+    - 0x04             手套箱锁
+    - 0x08             头盔锁
+  - voice              音效  number
+  - hash
+
+HttpResponse采用json形式返回
+  - errCode
+  - errMsg
+
 ## 灯光控制
 /devLightCtrl
 
@@ -597,7 +620,10 @@ webSvr收到后，后续报文，使用该IV来做AES计算
     - 1   拒绝
 
 
-## 灯光控制
+
+
+
+## 打开车辆电控锁
 
 - MsgId  4004
 - CryptFlag 1
@@ -609,7 +635,11 @@ webSvr收到后，后续报文，使用该IV来做AES计算
   - devtype         1Byte  
   - timestamp       8Byte
   - usrId           4Byte
-  - lightFlag       1Byte  
+  - lockFlag        1Byte   
+    - 0x02             座桶锁
+    - 0x04             手套箱锁
+    - 0x08             头盔锁
+  - warningVoice     1Byte  报警音效
 - nDataLen  //原始数据的长度
 - crc16     //原始数据的crc16
 
@@ -618,6 +648,35 @@ webSvr收到后，后续报文，使用该IV来做AES计算
     - 0   Ok
     - 1   拒绝
 
+
+
+## 灯光控制
+
+- MsgId  4005
+- CryptFlag 1
+### 包体部分 
+
+**注意：包体部分是AES之后的数据**
+- 加密部分报文
+  - devId           4Byte
+  - devtype         1Byte  
+  - timestamp       8Byte
+  - usrId           4Byte
+  - lightFlag       2Byte  
+    - 0x01     照明大灯 
+    - 0x04     照明远光灯
+    - 0x10     示廓灯    
+    - 0x40     开启左转向灯  
+    - 0x80     开启右转向灯 
+    - 0x0100   双闪灯    
+    - 0x0400   刹车灯    
+- nDataLen  //原始数据的长度
+- crc16     //原始数据的crc16
+
+### 应答包
+- RespCode
+    - 0   Ok
+    - 1   拒绝
 
 ## 声响控制
 
