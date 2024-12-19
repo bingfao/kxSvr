@@ -237,7 +237,8 @@ void KxBusinessLogicMgr::DevRegMsgCallBack(std::shared_ptr<KxDevSession> session
 	else
 #else
 	{
-
+		const std::time_t t_c = std::time(nullptr);
+		session->setLastTime(t_c);
 		unsigned char szPacketBody[20] = {0};
 		msgRespHead_base.nMsgBodyLen = sizeof(szPacketBody);
 		msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
@@ -652,7 +653,7 @@ void KxBusinessLogicMgr::AppCtrlOpenLockMsgCallBack(std::shared_ptr<KxDevSession
 	}
 }
 
-void KxBusinessLogicMgr::AppCtrlDevElecLockCallBack(std::shared_ptr<KxDevSession> session, const KxMsgPacket_Basic& msgPacket)
+void KxBusinessLogicMgr::AppCtrlDevElecLockCallBack(std::shared_ptr<KxDevSession> session, const KxMsgPacket_Basic &msgPacket)
 {
 	auto msgHeader = msgPacket.getMsgHeader();
 	auto pMsgBody = msgPacket.getMsgBodyBuf();

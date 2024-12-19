@@ -304,7 +304,7 @@ void KxDevSession::updateDevSessionId(unsigned int nDevId, unsigned int nSession
 {
 	m_nDevId = nDevId;
 	m_server->updateDevSessionIdMap(nDevId, nSessionId);
-	// 应该从数据库中获取该DevId对应的 AES_KEY
+	RandIVData();
 }
 
 void KxDevSession::setLastTime(const std::time_t &tm_val)

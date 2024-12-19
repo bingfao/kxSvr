@@ -58,7 +58,7 @@ CryptFlag 如为1，则包体内容是做过AES 处理的，
 
 # 具体报文说明
 
-## --------------   dev -----> svrInstace 
+# --------------   dev -----> svrInstace 
 
 ## 设备注册
 tcp长连接情况下设备上电重启等条件下，设备连接服务端，发送的首条报文
@@ -311,7 +311,7 @@ respcode为0时：
 
 
 
-## --------------   svrInstance -----> dev
+# --------------   svrInstance -----> dev
 
 ## 授权开锁  
 - MsgId  2001
@@ -435,7 +435,7 @@ respcode为0时：
     - svrtime         8Byte timestamp  localtime 
     - devSessionId    4Byte
     - FileType        1Byte 
-    - FileName        32Byte  char utf-8 
+    - FileName        32Byte  char utf-8  || 需要对文件名的规则进行约定，以实现固件OTA升级以及媒体文件等更新下发
     - FileLen         4Byte  
     - FileMD5         16Byte
     - FileHeadData    小于4k的数据，当文件数据大于4k时，仅填入4k长度数据，剩余数据由2021报文依次下发    
