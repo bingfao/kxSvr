@@ -21,6 +21,16 @@ void KX_LOG_FUNC_(const std::string &strLog)
     KX_LOG_FUNC_(strLog.c_str());
 }
 
+void KX_LOG_FUNC_(unsigned char *pBuf, int nBufLen)
+{
+    std::stringstream ss;
+    for (int i = 0; i < nBufLen; ++i)
+    {
+        ss << std::setw(2) << std::setfill('0') << std::hex << (short)pBuf[i] << ' ';
+    }
+    KX_LOG_FUNC_(ss.str());
+}
+
 KxServer::KxServer(asio::io_context &io_context, short port)
     : m_io_context(io_context), m_nPort(port), m_acceptor(io_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)), m_nsessionCount(0)
 {
@@ -108,15 +118,19 @@ void KxServer::onMsgResp(std::shared_ptr<KxMsgPacket_Basic> resp)
             {
                 // 基于resp
                 auto msgPacket = msgNode->m_logicNode->m_recvedPacket;
-                KxMsgHeader_Base msgRespHead_base;
-                auto msgHeader = msgPacket->getMsgHeader();
-                msgRespHead_base.nMsgId = msgHeader.nMsgId;
-                msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
-                msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
-                msgRespHead_base.nMsgBodyLen = 0;
-                msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
-                auto session = msgNode->m_logicNode->m_session;
-                session->SendRespPacket(msgRespHead_base, resp->getRespCode(), nullptr, false);
+                if (msgPacket)
+                {
+                    KxMsgHeader_Base msgRespHead_base;
+                    auto msgHeader = msgPacket->getMsgHeader();
+                    msgRespHead_base.nMsgId = msgHeader.nMsgId;
+                    msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
+                    msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
+                    msgRespHead_base.nMsgBodyLen = 0;
+                    msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+                    auto session = msgNode->m_logicNode->m_session;
+                    if (session)
+                        session->SendRespPacket(msgRespHead_base, resp->getRespCode(), nullptr, false);
+                }
             }
             break;
         }
@@ -167,16 +181,24 @@ void KxServer::CheckTimeOutSvrMsgWaitItem(const std::time_t &tm_now)
         if (tm_now - msgNode->m_timestamp > cst_Svr_Wait_DevMsgResp_Sec)
         {
             // 回复超时
-            auto msgPacket = msgNode->m_logicNode->m_recvedPacket;
-            KxMsgHeader_Base msgRespHead_base;
-            auto msgHeader = msgPacket->getMsgHeader();
-            msgRespHead_base.nMsgId = msgHeader.nMsgId;
-            msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
-            msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
-            msgRespHead_base.nMsgBodyLen = 0;
-            msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
-            auto session = msgNode->m_logicNode->m_session;
-            session->SendRespPacket(msgRespHead_base,cst_nResp_Code_SEND_DEV_ERR, nullptr, false);
+            auto logicNode = msgNode->m_logicNode;
+            if (logicNode)
+            {
+                auto msgPacket = logicNode->m_recvedPacket;
+                if (msgPacket)
+                {
+                    KxMsgHeader_Base msgRespHead_base;
+                    auto msgHeader = msgPacket->getMsgHeader();
+                    msgRespHead_base.nMsgId = msgHeader.nMsgId;
+                    msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
+                    msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
+                    msgRespHead_base.nMsgBodyLen = 0;
+                    msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+                    auto session = logicNode->m_session;
+                    if (session)
+                        session->SendRespPacket(msgRespHead_base, cst_nResp_Code_SEND_DEV_ERR, nullptr, false);
+                }
+            }
         }
     }
     m_svrMsgWaitResp_list.remove_if([&tm_now](std::shared_ptr<KxMsgLogicNode> item)
@@ -195,7 +217,7 @@ void KxServer::CheckTimeOutSessions(const std::error_code & /*e*/,
     // const std::chrono::time_point<std::chrono::system_clock> tp_now =
     //     std::chrono::system_clock::now();
     // const std::time_t t_c =  std::chrono::system_clock::to_time_t(tp_now);
-    const std::time_t t_c =  std::time(nullptr);
+    const std::time_t t_c = std::time(nullptr);
     auto tm_now = std::localtime(&t_c);
     if (tm_now->tm_hour == 0 && tm_now->tm_min < 5)
     {
@@ -221,7 +243,13 @@ void KxServer::ClearSession(unsigned int nSessionId)
         auto session = m_sessionsMap[nSessionId];
         std::unique_lock<std::mutex> svrlst_lock(m_svrMsgList_mutex);
         m_svrMsgWaitResp_list.remove_if([&session](std::shared_ptr<KxMsgLogicNode> item)
-                                        { return item->m_logicNode->m_session == session; });
+                                        { 
+                                            bool b(false);
+                                            if(item->m_logicNode){
+                                                b = item->m_logicNode->m_session == session; 
+                                            }
+                                            return b;
+                                            });
         std::lock_guard<std::mutex> lock(m_mutex_map);
         m_sessionsMap.erase(nSessionId);
     }

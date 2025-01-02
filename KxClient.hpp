@@ -17,6 +17,28 @@ using asio::ip::tcp;
 
 typedef std::deque<std::shared_ptr<KxMsgPacket_Basic>> msgPacket_queue;
 
+void KX_LOG_FUNC_(const std::string &strLog)
+{
+  std::cout << strLog << std::endl;
+}
+
+void KX_LOG_FUNC_(unsigned char *pBuf, int nBufLen)
+{
+  std::stringstream ss;
+  for (int i = 0; i < nBufLen; ++i)
+  {
+    ss << std::setw(2) << std::setfill('0') << std::hex << (short)pBuf[i] << ' ';
+  }
+  KX_LOG_FUNC_(ss.str());
+}
+
+struct KxDeliverFileDataItem
+{
+  unsigned int nDataPos;
+  unsigned short nDataLen;
+  std::string strData;
+};
+
 class KxClient
 {
 public:
@@ -24,12 +46,15 @@ public:
            const tcp::resolver::results_type &endpoints)
       : io_context_(io_context),
         socket_(io_context),
-        m_pReadMsgBodyBuf(nullptr), m_nMsgBodyBufLen(0)
+        m_pReadMsgBodyBuf(nullptr), m_nMsgBodyBufLen(0),
+        m_b_thdExit(false),
+        m_bClosed(false)
   {
     do_connect(endpoints);
   }
   ~KxClient()
   {
+    close();
     if (m_pReadMsgBodyBuf)
     {
       delete[] m_pReadMsgBodyBuf;
@@ -56,8 +81,16 @@ public:
   void close()
   {
     // socket_.close();
-    asio::post(io_context_, [this]()
-               { socket_.close(); });
+    if (!m_bClosed)
+    {
+      asio::post(io_context_, [this]()
+                 { socket_.close(); });
+      m_b_thdExit = true;
+      m_cond_consume.notify_one();
+      if (m_recvMsgHandling_thread.joinable())
+        m_recvMsgHandling_thread.join();
+      m_bClosed = true;
+    }
   }
 
   unsigned int getSessionId()
@@ -88,6 +121,12 @@ public:
     return aes_128_CBC_encrypt(m_aes_key, m_aes_iv, pIn, nInBufLen, pOut, nOutBufLen);
   }
 
+  bool AES_decryptPacket(const unsigned char *pIn, unsigned int nInBufLen,
+                         unsigned char *pOut, unsigned int &nOutBufLen)
+  {
+    return aes_128_CBC_decrypt(m_aes_key, m_aes_iv, pIn, nInBufLen, pOut, nOutBufLen);
+  }
+
 private:
   void do_connect(const tcp::resolver::results_type &endpoints)
   {
@@ -96,6 +135,7 @@ private:
                         {
                           if (!ec)
                           {
+                            startRecvMsgHandlingThread();
                             if (!m_pReadMsgBodyBuf)
                             {
                               m_pReadMsgBodyBuf = new unsigned char[cst_basic_recv_packetbody_buf_len];
@@ -125,15 +165,16 @@ private:
                              bOk = nRead == 4;
                              length += nRead;
                            }
-                           std::cout << "Packet Header:" << std::endl;
-                           std::cout << std::hex;
-                           unsigned char *pHeaderyBuf = read_msg_.getHeaderBuf();
-                           for (int i = 0; i < length; ++i)
-                           {
-                             // std::cout<<std::hex<<ste::setw(2)<<std::fill('0')<<pBodyBuf[i];
-                             std::cout << std::setw(2) << std::setfill('0') << (short)pHeaderyBuf[i] << ' ';
-                           }
-                           std::cout << std::dec << std::endl;
+                           // std::cout << "Packet Header:" << std::endl;
+                           // std::cout << std::hex;
+                           // unsigned char *pHeaderyBuf = read_msg_.getHeaderBuf();
+                           //  for (int i = 0; i < length; ++i)
+                           //  {
+                           //    // std::cout<<std::hex<<ste::setw(2)<<std::fill('0')<<pBodyBuf[i];
+                           //    std::cout << std::setw(2) << std::setfill('0') << (short)pHeaderyBuf[i] << ' ';
+                           //  }
+                           // KX_LOG_FUNC_(pHeaderyBuf, length);
+                           // std::cout << std::dec << std::endl;
                            if (bOk)
                            {
                              if (read_msg_.getBodyLen())
@@ -143,7 +184,8 @@ private:
                              }
                              else
                              {
-                               onHanleMsg();
+                               AddRecvedMsgToQueue();
+                               // onHanleMsg();
                              }
                            }
                          }
@@ -182,20 +224,23 @@ private:
                      {
                        if (!ec)
                        {
-                         std::cout << "Packet Body:" << std::endl;
-                         unsigned char *pBodyBuf = m_pReadMsgBodyBuf;
-                         std::cout << std::hex;
-                         for (int i = 0; i < length; ++i)
-                         {
-                           // std::cout<<std::hex<<ste::setw(2)<<std::fill('0')<<pBodyBuf[i];
-                           std::cout << std::setw(2) << std::setfill('0') << (short)pBodyBuf[i] << ' ';
-                         }
-                         std::cout << std::dec << std::endl;
+                         //  std::cout << "Packet Body:" << std::endl;
+                         //  unsigned char *pBodyBuf = m_pReadMsgBodyBuf;
+                         //  std::cout << std::hex;
+
+                         //  for (int i = 0; i < length; ++i)
+                         //  {
+                         //    // std::cout<<std::hex<<ste::setw(2)<<std::fill('0')<<pBodyBuf[i];
+                         //    std::cout << std::setw(2) << std::setfill('0') << (short)pBodyBuf[i] << ' ';
+                         //  }
+
+                         //  KX_LOG_FUNC_(pBodyBuf, length);
+                         //  std::cout << std::dec << std::endl;
 
                          // 接收到一个完整包时，进行处理
                          if (length == nNeedBodyBufLen)
                          {
-                           onHanleMsg();
+                           AddRecvedMsgToQueue();
                          }
                          do_read_header();
                        }
@@ -243,13 +288,17 @@ private:
                       });
   }
 
-  std::shared_ptr<KxMsgPacket_Basic> findPairedMsgSended()
+  void startRecvMsgHandlingThread();
+
+  void thdFun_doHandleRecvedMsg();
+
+  std::shared_ptr<KxMsgPacket_Basic> findPairedMsgSended(const KxMsgPacket_Basic &msg_)
   {
     std::shared_ptr<KxMsgPacket_Basic> ptr = nullptr;
     std::unique_lock<std::mutex> lock_sended(m_mutex_sended);
     for (auto &msg : sended_msgs_)
     {
-      if (msg->isPair(read_msg_))
+      if (msg->isPair(msg_))
       {
         ptr = msg;
         break;
@@ -258,89 +307,9 @@ private:
     return ptr;
   }
 
-  void onHanleMsg()
-  {
-    auto msg_h = read_msg_.getMsgHeader();
-    std::cout << "Handle Recved Msg: " << msg_h.nMsgId << ", msgBodytLen: " << msg_h.nMsgBodyLen << std::endl;
-    if (msg_h.nTypeFlag == cst_Resp_MsgType)
-    {
-      std::cout << "RespCode: " << read_msg_.getRespCode() << std::endl;
-    }
-    switch (msg_h.nMsgId)
-    {
-    case 1001:
-    {
-      if (read_msg_.getRespCode() == cst_nResp_Code_OK)
-      {
-        auto nBodyLen = read_msg_.getBodyLen();
-        if (nBodyLen >= sizeof(unsigned int) + AES_IV_BLOCK_SIZE)
-        {
-          auto send_msg = findPairedMsgSended();
-          if (send_msg)
-          {
-            m_nSessionId = *(unsigned int *)m_pReadMsgBodyBuf;
-            std::memcpy(m_aes_iv, m_pReadMsgBodyBuf + 4, AES_IV_BLOCK_SIZE);
-
-            std::unique_lock<std::mutex> lock_sended(m_mutex_sended);
-            sended_msgs_.remove(send_msg);
-          }
-        }
-      }
-    }
-    break;
-    case 9001:
-    {
-      if (read_msg_.getRespCode() == cst_nResp_Code_OK)
-      {
-        unsigned char *originMsgBody = nullptr;
-        unsigned int nMsgBufLen = 0;
-        bool brt = checkAESPacketData(originMsgBody, nMsgBufLen);
-        if (brt && originMsgBody && nMsgBufLen)
-        {
-          auto send_msg = findPairedMsgSended();
-          if (send_msg)
-          {
-            if (nMsgBufLen == sizeof(KxWebSvrRegRespPacketBody_OriginMsg))
-            {
-              KxWebSvrRegRespPacketBody_OriginMsg *pOrignMsg = (KxWebSvrRegRespPacketBody_OriginMsg *)originMsgBody;
-
-              m_nSessionId = pOrignMsg->nSessionId;
-              setAES_Iv(pOrignMsg->szIV);
-            }
-            std::unique_lock<std::mutex> lock_sended(m_mutex_sended);
-            sended_msgs_.remove(send_msg);
-          }
-          std::cout << "Recved New IV Data: " << std::hex;
-          for (int i = 0; i < AES_IV_BLOCK_SIZE; ++i)
-          {
-            std::cout << std::setw(2) << std::setfill('0') << (short)originMsgBody[i] << ' ';
-          }
-          std::cout << std::dec << std::endl;
-
-          delete[] originMsgBody;
-          originMsgBody = nullptr;
-        }
-      }
-    }
-    break;
-    case 2001:
-    {
-      KxMsgHeader_Base msgRespHead_base;
-      msgRespHead_base.nMsgId = msg_h.nMsgId;
-      msgRespHead_base.nSeqNum = msg_h.nSeqNum;
-      msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
-      msgRespHead_base.nMsgBodyLen = 0;
-      unsigned int nHeaderExtra[2] = {0};
-      nHeaderExtra[0] = cst_nResp_Code_OK;
-      auto msg = std::make_shared<KxMsgPacket_Basic>(msgRespHead_base, nHeaderExtra, nullptr, false);
-      msg->calculate_crc();
-      write(msg);
-    }
-    break;
-    default:
-      break;
-    }
-  }
+  void dealOneItem();
+  void onHanleMsg(std::shared_ptr<KxMsgPacket_Basic> msg_);
+  void AddRecvedMsgToQueue();
 
   bool checkAESPacketData(unsigned char *&pOrigin, unsigned int &nOriginDataLen)
   {
@@ -371,13 +340,23 @@ private:
   asio::io_context &io_context_;
   tcp::socket socket_;
   KxMsgPacket_Basic read_msg_;
+  // std::string read_msg_Body;
   unsigned char *m_pReadMsgBodyBuf;
   unsigned int m_nMsgBodyBufLen;
   unsigned int m_nDevId;
   unsigned int m_nSessionId;
   unsigned char m_aes_key[AES_IV_BLOCK_SIZE];
   unsigned char m_aes_iv[AES_IV_BLOCK_SIZE];
+  KxDevCtrlFileDeliverHeader_OrMsg_Base m_recving_FileHeader;
+  std::vector<KxDeliverFileDataItem> m_vec_recving_FileData;
   msgPacket_queue toSend_msgs_;
+  msgPacket_queue reeced_msgs_;
+  std::mutex m_mutex_queueRecved;
+  std::thread m_recvMsgHandling_thread;
+  bool m_b_thdExit;
+  std::condition_variable m_cond_consume;
+  bool m_bClosed;
+
   std::list<std::shared_ptr<KxMsgPacket_Basic>> sended_msgs_;
   std::mutex m_mutex_tosend;
   std::mutex m_mutex_sended;

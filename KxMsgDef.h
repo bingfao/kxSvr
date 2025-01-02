@@ -24,6 +24,8 @@ const int MSG_DEVCTRL_LOCKDEV = 2002;
 const int MSG_DEVCTRL_DEVGUARD = 2003;
 const int MSG_DEVCTRL_OPENELECLOCK = 2004;
 const int MSG_DEVCTRL_LIGHT = 2005;
+const int MSG_DEVCTRL_FILEDELIVER_HEADER = 2020;
+const int MSG_DEVCTRL_FILEDELIVER_DATA = 2021;
 
 const int MSG_WEBSVR_REGISTER = 9001;
 const int MSG_WEBSVR_HEARTBEAT = 9002;
@@ -33,8 +35,12 @@ const int MSG_APP_DEVCTRL_LOCKDEV = 4002;
 const int MSG_APP_DEVCTRL_DEVGUARD = 4003;
 const int MSG_APP_DEVCTRL_OPENELECLOCK = 4004;
 const int MSG_APP_DEVCTRL_LIGHT = 4005;
+const int MSG_APPTEST_DEVCTRL_FILEDELIVER = 4020;
 
 const unsigned int AES_IV_BLOCK_SIZE = 16;
+const unsigned int FILE_DATA_BASE_LEN = 256;
+const unsigned int FILE_DATA_HEADER_ALLOW_LEN = 4096;
+const unsigned int cst_FILE_DATA_PACKET_ALLOW_LEN = 8192;
 
 #pragma pack(1)
 
@@ -131,8 +137,8 @@ struct KxDevStatusPacketBody_Base
 	unsigned char nProtocolFlag;
 	double lngPos;
 	double latPos;
-	bool bDriving;
 	unsigned int mileage;
+	bool bDriving;
 	short speed;
 	KxDev_Status_ Status;
 	bool bMiniBatExist;
@@ -194,6 +200,19 @@ struct KxAppDevCtrlElecLock_OrMsg
 	unsigned char nVoiceIndex;
 };
 
+struct KxAppDevCtrlFileDeliver_Base
+{
+    unsigned int nDevId;
+	unsigned char devtype;
+	std::time_t svrTime;
+	int nSysUsrId;
+	unsigned char FileType;
+	char szFileName[32];
+	unsigned int nFileLen;
+	unsigned char fileMd5[16];
+	unsigned char szFileData[FILE_DATA_BASE_LEN];
+};
+
 struct KxDevCtrlOpenLock_OrMsg
 {
 	std::time_t svrTime;
@@ -225,6 +244,27 @@ struct KxDevCtrlElecLock_OrMsg
 	unsigned int nSessionId;
 	unsigned char lockFlag;
 	unsigned char nVoiceIndex;
+};
+
+struct KxDevCtrlFileDeliverHeader_OrMsg_Base
+{
+	std::time_t svrTime;
+	unsigned int nSessionId;
+	unsigned char FileType;
+	char szFileName[32];
+	unsigned int nFileLen;
+	unsigned char fileMd5[16];
+	unsigned char fileData[FILE_DATA_BASE_LEN];
+};
+
+struct KxDevCtrlFileDeliverFileData_Base
+{
+	unsigned int nSessionId;
+	unsigned char FileType;
+	char szFileName[32];
+	unsigned int nFileDataPos;
+	unsigned short nDataLen;
+	unsigned char fileData[3];
 };
 
 

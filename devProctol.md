@@ -120,7 +120,7 @@ respcode为0时：
 
 以下针对E-bike和E-Motor
 
-- ProtocolFlag  应对后续协议升级用的标识
+- ProtocolFlag  应对后续协议升级用的标识   1Byte
     - 1   目前对应的版本
 - lngPos    lng位置  double  8Byte
 - latPos    lat位置  double  8Byte
@@ -229,8 +229,8 @@ respcode为0时：
     - aveSpeed     平均速度
     - maxCurrent   最大供电电流
     - batteryId    电池编号            //如更换电池，上一行程结束，新行程重新开始
-- nDataLen  //原始数据的长度
-- crc16     //原始数据的crc16
+- nDataLen  4Byte    //原始数据的长度
+- crc16     2Byte    //原始数据的crc16
 
 
 
@@ -268,8 +268,8 @@ respcode为0时：
     - socEnd       结束时的SOC
     - volBegin     开始时的电压
     - volEnd       结束时的电压
-- nDataLen  //原始数据的长度
-- crc16     //原始数据的crc16
+- nDataLen  4Byte    //原始数据的长度
+- crc16     2Byte    //原始数据的crc16
 
 
 
@@ -305,8 +305,8 @@ respcode为0时：
             - 7      车辆电池被放入
             - 8      车辆倾倒
             - 9      车辆未解锁被移动
-- nDataLen  //原始数据的长度
-- crc16     //原始数据的crc16
+- nDataLen  4Byte    //原始数据的长度
+- crc16     2Byte    //原始数据的crc16
 
 
 
@@ -326,8 +326,8 @@ respcode为0时：
     - allowTime       2Byte  允许使用的时长， 以min计
     - lowestSocP      1Byte  允许使用到的最低电量  0~100
     - farthestDist    4Byte  允许的最远距离，以m计
-- nDataLen  //原始数据的长度
-- crc16     //原始数据的crc16
+- nDataLen  4Byte    //原始数据的长度
+- crc16     2Byte    //原始数据的crc16
 
 ### 应答包
 - RespCode
@@ -347,8 +347,8 @@ respcode为0时：
     - svrtime         8Byte timestamp  localtime 
     - devSessionId    4Byte
     - voice           1Byte  关锁音效
-- nDataLen  //原始数据的长度
-- crc16     //原始数据的crc16
+- nDataLen  4Byte    //原始数据的长度
+- crc16     2Byte    //原始数据的crc16
 
 ### 应答包
 - RespCode
@@ -372,8 +372,8 @@ respcode为0时：
         - 0xFF  不限制功率
     - maxSpeed         2Byte  限制的最高速度, 以m/s*100
     - warningVoice     1Byte  报警音效
-- nDataLen  //原始数据的长度
-- crc16     //原始数据的crc16
+- nDataLen  4Byte    //原始数据的长度
+- crc16     2Byte    //原始数据的crc16
 
 ### 应答包
 - RespCode
@@ -395,8 +395,8 @@ respcode为0时：
         - 0x02             座桶锁
         - 0x04             手套箱锁
         - 0x08             头盔锁
-- nDataLen  //原始数据的长度
-- crc16     //原始数据的crc16
+- nDataLen  4Byte    //原始数据的长度
+- crc16     2Byte    //原始数据的crc16
 
 ### 应答包
 - RespCode
@@ -414,8 +414,8 @@ respcode为0时：
     - svrtime          8Byte timestamp  localtime 
     - devSessionId     4Byte
     - lightFlag        1Byte  
-- nDataLen  //原始数据的长度
-- crc16     //原始数据的crc16
+- nDataLen  4Byte    //原始数据的长度
+- crc16     2Byte    //原始数据的crc16
 
 ### 应答包
 - RespCode
@@ -435,17 +435,24 @@ respcode为0时：
     - svrtime         8Byte timestamp  localtime 
     - devSessionId    4Byte
     - FileType        1Byte 
+        - 1                 固件版本等系统文件
+        - 2                 媒体文件
     - FileName        32Byte  char utf-8  || 需要对文件名的规则进行约定，以实现固件OTA升级以及媒体文件等更新下发
+        - "bms"            对应BMS固件
+        - "motorcontrol"    对应电机控制器
+        - "maincontrol"     对应主控
+        - "dashboard"       对应仪表盘
+        - "weather.mp3"     对应天气提示
     - FileLen         4Byte  
     - FileMD5         16Byte
     - FileHeadData    小于4k的数据，当文件数据大于4k时，仅填入4k长度数据，剩余数据由2021报文依次下发    
-- nDataLen  //原始数据的长度
-- crc16     //原始数据的crc16
+- nDataLen     4Byte  //原始数据的长度
+- crc16        2Byte  //原始数据的crc16
 
 ### 应答包
 - RespCode
     - 0   Ok
-    - 1   拒绝
+    - 1   拒绝   //当MCU存储空间不足等情况，回复拒绝
 
 
 ## 文件数据下发
@@ -455,14 +462,13 @@ respcode为0时：
 **设备接收到全部文件数据后，校验md5, 完成本次文件数据下发**
 
 ### 包体部分 
-
 - devSessionId    4Byte
 - FileType        1Byte 
 - FileName        32Byte  char utf-8 
 - FileDataPos     4Byte   本包数据在文件数据的起始位置
 - nDataLen        2Byte   数据的长度  每包不超过20k 
 - FileHData          
-- crc16           包体部分从FileDataPos到FileData的crc16
+- crc16           2Byte    包体部分从FileDataPos到FileData的crc16
 
 ### 应答包
 - RespCode
@@ -485,8 +491,8 @@ respcode为0时：
         - 1   NFC      //暂时可能只支持NFC一种，蓝牙等无法通过该方法
     - KeyIdLen        1Byte  解锁设备Id长度
     - KeyId           nByte  解锁设备的Id
-- nDataLen  //原始数据的长度
-- crc16     //原始数据的crc16
+- nDataLen  4Byte    //原始数据的长度
+- crc16     2Byte    //原始数据的crc16
 
 ### 应答包
 - RespCode
@@ -509,8 +515,8 @@ respcode为0时：
         - 2   BLE
     - KeyIdLen        1Byte  解锁设备Id长度
     - KeyId           nByte  解锁设备的Id
-- nDataLen  //原始数据的长度
-- crc16     //原始数据的crc16
+- nDataLen  4Byte    //原始数据的长度
+- crc16     2Byte    //原始数据的crc16
 
 ### 应答包
 - RespCode

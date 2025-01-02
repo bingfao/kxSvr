@@ -9,8 +9,9 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${fileDirname}\\${fileBasenameNoExtension}.exe",
-            "args": ["175.24.207.98","10086"],
-            "stopAtEntry": false,
+            //"args": ["175.24.207.98","10086"],
+            "args": ["175.24.207.98","10086","10002"],
+            "stopAtEntry": true,
             "cwd": "${fileDirname}",
             "environment": [],
             "console": "externalTerminal"
@@ -22,10 +23,9 @@
             "request": "launch",
             "program": "${fileDirname}\\kxsvr.exe",
             "args": [],
-            "stopAtEntry": false,
+            "stopAtEntry": true,
             "cwd": "${fileDirname}",
-            "environment": [],
-            "console": "externalTerminal"
+            "environment": []
         }
     ]
 }

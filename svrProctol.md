@@ -487,6 +487,26 @@ HttpResponse采用json形式返回
 /devVoiceCtrl
 
 
+## 文件下发--测试
+/devFileDeliver
+
+httpRequest
+  - type          //type不参与计算hash
+    - 1 wx小程序
+    - 2 独立App  
+  - usrId 
+  - devId
+  - devType
+  **以下项不参与计算hash**
+  - FileType
+  - FileName
+  - FileUrl
+  - hash
+
+HttpResponse采用json形式返回
+  - errCode
+  - errMsg
+
 ## 查看车辆已绑定主机信息
 /devBindingHosts
 
@@ -596,12 +616,12 @@ webSvr收到后，后续报文，使用该IV来做AES计算
 
 
 
-# 设备控制命令
+## 设备控制命令
 
-## 远程开锁
+### 远程开锁
 - MsgId  4001
 - CryptFlag 1
-### 包体部分 
+#### 包体部分 
 
 **注意：包体部分是AES之后的数据**
 - 加密部分报文
@@ -615,17 +635,17 @@ webSvr收到后，后续报文，使用该IV来做AES计算
 - nDataLen  //原始数据的长度
 - crc16     //原始数据的crc16
 
-### 应答包
+#### 应答包
 - RespCode
     - 0   Ok
     - 1   拒绝
 
 
 
-## 远程锁定
+### 远程锁定
 - MsgId  4002
 - CryptFlag 1
-### 包体部分 
+#### 包体部分 
 
 **注意：包体部分是AES之后的数据**
 - 加密部分报文
@@ -637,17 +657,17 @@ webSvr收到后，后续报文，使用该IV来做AES计算
 - nDataLen  //原始数据的长度
 - crc16     //原始数据的crc16
 
-### 应答包
+#### 应答包
 - RespCode
     - 0   Ok
     - 1   拒绝
 
 
 
-## 远程防盗锁定
+### 远程防盗锁定
 - MsgId  4003
 - CryptFlag 1
-### 包体部分 
+#### 包体部分 
 
 **注意：包体部分是AES之后的数据**
 - 加密部分报文
@@ -665,7 +685,7 @@ webSvr收到后，后续报文，使用该IV来做AES计算
 - nDataLen  //原始数据的长度
 - crc16     //原始数据的crc16
 
-### 应答包
+#### 应答包
 - RespCode
     - 0   Ok
     - 1   拒绝
@@ -674,11 +694,11 @@ webSvr收到后，后续报文，使用该IV来做AES计算
 
 
 
-## 打开车辆电控锁
+### 打开车辆电控锁
 
 - MsgId  4004
 - CryptFlag 1
-### 包体部分 
+#### 包体部分 
 
 **注意：包体部分是AES之后的数据**
 - 加密部分报文
@@ -694,19 +714,18 @@ webSvr收到后，后续报文，使用该IV来做AES计算
 - nDataLen  //原始数据的长度
 - crc16     //原始数据的crc16
 
-### 应答包
+#### 应答包
 - RespCode
     - 0   Ok
     - 1   拒绝
 
 
 
-## 灯光控制
+### 灯光控制
 
 - MsgId  4005
 - CryptFlag 1
-### 包体部分 
-
+#### 包体部分 
 **注意：包体部分是AES之后的数据**
 - 加密部分报文
   - devId           4Byte
@@ -724,30 +743,61 @@ webSvr收到后，后续报文，使用该IV来做AES计算
 - nDataLen  //原始数据的长度
 - crc16     //原始数据的crc16
 
-### 应答包
+#### 应答包
 - RespCode
     - 0   Ok
     - 1   拒绝
 
-## 声响控制
+### 声响控制
 
-## 自定义提示音
+### 自定义提示音
 
-## 自定义灯光
+### 自定义灯光
 
-## 开启整车测试
+### 开启整车测试
 
 车辆在接收到该命令后，开启测试模式，按规定顺序逐一控制各部件，并反馈每次控制的状态情况
 
 此命令仅为检测使用，不开放给App日常操作
 
 
-## 查看车辆已绑定主机信息
+### 下发文件
 
-- MsgId  4020
+此对应服务端控制台，文件已copy到svr端，有url路径可访问到
+
+- MsgId 4020
+- CryptFlag 0
+#### 包体部分 
+- devId           4Byte
+- devtype         1Byte  
+- timestamp       8Byte
+- sysUsrId        4Byte
+- FileType        1Byte 
+  - 1                  固件版本等系统文件
+  - 2                  媒体文件
+- FileName        32Byte  char utf-8  || 需要对文件名的规则进行约定，以实现固件OTA升级以及媒体文件等更新下发
+  - "bms"              对应BMS固件
+  - "motorcontrol"     对应电机控制器
+  - "maincontrol"      对应主控
+  - "dashboard"        对应仪表盘
+  - "weather.mp3"      对应天气提示
+- FileDataLen     4Byte
+- FileMD5         16Byte
+- FileData        NBytes         
+
+#### 应答包
+- RespCode
+    - 0   Ok
+    - 1   拒绝
+    - 0xFF  发生错误
+
+
+
+### 查看车辆已绑定主机信息
+
+- MsgId  4030
 - CryptFlag 1
-### 包体部分 
-
+#### 包体部分 
 **注意：包体部分是AES之后的数据**
 - 加密部分报文
   - devId           4Byte
@@ -757,7 +807,7 @@ webSvr收到后，后续报文，使用该IV来做AES计算
 - nDataLen  //原始数据的长度
 - crc16     //原始数据的crc16
 
-### 应答包
+#### 应答包
 - RespCode
     - 0   Ok
     - 1   拒绝

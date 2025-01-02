@@ -55,6 +55,7 @@ public:
 
 	void SendRespPacket(const KxMsgHeader_Base &msgHeader, unsigned int nRespCode, unsigned char *pBodyBuf = nullptr, bool bDelBuf = false);
 	void SendMsgPacket(const KxMsgHeader_Base &msgHeader, unsigned char *pBodyBuf = nullptr, bool bDelBuf = false, std::shared_ptr<KxBussinessLogicNode> pLogicNode = nullptr);
+    
 	std::shared_ptr<KxDevSession> SharedSelf()
 	{
 		return shared_from_this();

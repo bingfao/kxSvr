@@ -32,9 +32,34 @@ public:
 		m_bNeedDeleteBuf = bNeedDelBuf;
 		if (m_bNeedDeleteBuf)
 		{
-			m_pMsgBodyBuf = new unsigned char[m_msgHeader.nMsgBodyLen];
+			if (m_msgHeader.nMsgBodyLen)
+			{
+				m_pMsgBodyBuf = new unsigned char[m_msgHeader.nMsgBodyLen];
+				if (pBody)
+					memcpy(m_pMsgBodyBuf, pBody, m_msgHeader.nMsgBodyLen);
+			}
+		}
+		else
+		{
 			if (pBody)
-				memcpy(m_pMsgBodyBuf, pBody, m_msgHeader.nMsgBodyLen);
+				m_pMsgBodyBuf = pBody;
+		}
+	}
+	KxMsgPacket_Basic(const KxMsgPacket_Basic &msg_, unsigned char *pBody, bool bNeedDelBuf)
+	{
+		KxMsgPacket_Basic();
+		std::memcpy(&m_msgHeader, &msg_, sizeof(KxMsgHeader_Base));
+		m_nRespCode_u_DevId = msg_.m_nRespCode_u_DevId;
+		m_nSessionId = msg_.m_nSessionId;
+		m_bNeedDeleteBuf = bNeedDelBuf;
+		if (m_bNeedDeleteBuf)
+		{
+			if (m_msgHeader.nMsgBodyLen)
+			{
+				m_pMsgBodyBuf = new unsigned char[m_msgHeader.nMsgBodyLen];
+				if (pBody)
+					memcpy(m_pMsgBodyBuf, pBody, m_msgHeader.nMsgBodyLen);
+			}
 		}
 		else
 		{

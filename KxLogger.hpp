@@ -13,6 +13,7 @@
 
 void KX_LOG_FUNC_(const char* szLog);
 void KX_LOG_FUNC_(const std::string& strLog);
+void KX_LOG_FUNC_(unsigned char *pBuf, int nBufLen);
 
 class Kx_Logger
 {

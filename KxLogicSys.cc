@@ -4,10 +4,13 @@
 #include "KxLogger.hpp"
 #include "aeshelper.hpp"
 #include <cstring>
+#include <chrono>
 
 #ifdef USING_PQ_DB_
 #include <pqxx/pqxx>
 #endif
+
+using namespace std::chrono_literals;
 
 const char cst_szHost[] = "kingxun.site";
 
@@ -108,6 +111,9 @@ void KxBusinessLogicMgr::RegisterCallBacks()
 															 std::placeholders::_1, std::placeholders::_2);
 	m_map_FunCallbacks[MSG_APP_DEVCTRL_OPENELECLOCK] = std::bind(&KxBusinessLogicMgr::AppCtrlDevElecLockCallBack, this,
 																 std::placeholders::_1, std::placeholders::_2);
+
+	m_map_FunCallbacks[MSG_APPTEST_DEVCTRL_FILEDELIVER] = std::bind(&KxBusinessLogicMgr::AppCtrlDevFileDeliverCallBack, this,
+																	std::placeholders::_1, std::placeholders::_2);
 
 	m_map_FunCallbacks[MSG_WEBSVR_REGISTER] = std::bind(&KxBusinessLogicMgr::WebSvrRegMsgCallBack, this,
 														std::placeholders::_1, std::placeholders::_2);
@@ -281,6 +287,8 @@ void KxBusinessLogicMgr::DevStatusMsgCallBack(std::shared_ptr<KxDevSession> sess
 		pqxx::work tx{c};
 		KxDevStatusPacketBody_Base *pDevStatus = (KxDevStatusPacketBody_Base *)msgPacket.getMsgBodyBuf();
 
+		KX_LOG_FUNC_((unsigned char *)pDevStatus, sizeof(KxDevStatusPacketBody_Base));
+
 		// auto tm_now = std::localtime(&t_c);
 		// std::string strnow = std::format("{:d}-{:d}-{:d} {:d}:{:d}:{:d}", tm_now->tm_year + 1900, tm_now->tm_mon + 1, tm_now->tm_mday, tm_now->tm_hour, tm_now->tm_min, tm_now->tm_sec);
 
@@ -312,11 +320,13 @@ void KxBusinessLogicMgr::DevStatusMsgCallBack(std::shared_ptr<KxDevSession> sess
 			// 						 pDevStatus->szBatteryId, batteryStatus.socPercent, batteryStatus.voltage, batteryStatus.temp,
 			// 						 batteryStatus.currentFlag, batteryStatus.current, pDevStatus->seriesCount, t_c);
 			// }
+			char szBatteryid[sizeof(KxDevStatusPacketBody_Base::szBatteryId) + 1] = {0};
+			std::strncpy(szBatteryid, pDevStatus->szBatteryId, sizeof(KxDevStatusPacketBody_Base::szBatteryId));
 			strsql = std::format("Insert into batterystatus (batteryid,socpercent,voltage,temp,currentflag,current,seriescount,seriesdata,stTime) values ('{:s}',{:d},{:d},{:d},{:d},{:d},{:d},{:s},localtimestamp({:d})  ) RETURNING batstid;",
-								 pDevStatus->szBatteryId, batteryStatus.socPercent, batteryStatus.voltage, batteryStatus.temp,
+								 szBatteryid, batteryStatus.socPercent, batteryStatus.voltage, batteryStatus.temp,
 								 batteryStatus.currentFlag, batteryStatus.current, pDevStatus->seriesCount, strSeriesData, t_c);
 			// std::cout << "sql is: " << strsql << std::endl;
-			KX_LOG_FUNC_(strsql);
+			// KX_LOG_FUNC_(strsql);
 			pqxx::result r = tx.exec(strsql);
 			// tx.commit();
 
@@ -335,10 +345,12 @@ void KxBusinessLogicMgr::DevStatusMsgCallBack(std::shared_ptr<KxDevSession> sess
 		}
 		std::string strbMiniBatId = "NULL";
 		std::string strbMiniBatStatus = "NULL";
+		char szMiniBatteryId[sizeof(KxDevStatusPacketBody_Base::szMiniBatteryId) + 1] = {0};
+		std::strncpy(szMiniBatteryId, pDevStatus->szMiniBatteryId, sizeof(KxDevStatusPacketBody_Base::szMiniBatteryId));
 		if (pDevStatus->bMiniBatExist)
 		{
 			strbMiniBatId = "'";
-			strbMiniBatId += pDevStatus->szMiniBatteryId;
+			strbMiniBatId += szMiniBatteryId;
 			strbMiniBatId += "'";
 			auto nSeriesDataBytes = sizeof(KxDev_MiniBatteryStatus_);
 			unsigned char *pSeriesBytes = (unsigned char *)(&pDevStatus->miniBatteryStatus);
@@ -349,11 +361,12 @@ void KxBusinessLogicMgr::DevStatusMsgCallBack(std::shared_ptr<KxDevSession> sess
 			}
 			strbMiniBatStatus = "'\\x" + ss.str() + "'";
 		}
+
 		strsql = std::format("Insert into devStatus (devId,devType,devpos,mileage,bdriving,speed,status,bminibatexist,minibatteryid,miniibatterystatus,batteryexist,chargeflag,batteryid,batstid,stTime) values ({:d},{:d},'{},{}',{},{},{},'\\x{:0>8x}{:0>4x}',{},{},{},{},{},'{}',{},localtimestamp({:d}) );",
 							 msgPacket.getDevId(),
 							 pDevStatus->nDevType, pDevStatus->lngPos, pDevStatus->latPos, pDevStatus->mileage, pDevStatus->bDriving, pDevStatus->speed,
 							 *pStatusLow, *pStatusHigh, pDevStatus->bMiniBatExist, strbMiniBatId, strbMiniBatStatus, pDevStatus->batteryExist, pDevStatus->chargeFlag, pDevStatus->szBatteryId, batstid, t_c);
-		KX_LOG_FUNC_(strsql);
+		// KX_LOG_FUNC_(strsql);
 		// std::cout << "sql is: " << strsql << std::endl;
 		tx.exec(strsql);
 		tx.commit();
@@ -438,7 +451,7 @@ void KxBusinessLogicMgr::AppCtrlLockDevMsgCallBack(std::shared_ptr<KxDevSession>
 		{
 			// 需要做加密
 			KxMsgHeader_Base msgDevReqHead_base;
-			auto msgHeader = msgPacket.getMsgHeader();
+			// auto msgHeader = msgPacket.getMsgHeader();
 			msgDevReqHead_base.nMsgId = MSG_DEVCTRL_LOCKDEV;
 			msgDevReqHead_base.nSeqNum = msgHeader.nSeqNum;
 			msgDevReqHead_base.nTypeFlag = 0;
@@ -468,7 +481,7 @@ void KxBusinessLogicMgr::AppCtrlLockDevMsgCallBack(std::shared_ptr<KxDevSession>
 			{
 				// cst_nResp_Code_SEND_DEV_ERR
 				KxMsgHeader_Base msgRespHead_base;
-				auto msgHeader = msgPacket.getMsgHeader();
+				// auto msgHeader = msgPacket.getMsgHeader();
 				msgRespHead_base.nMsgId = msgHeader.nMsgId;
 				msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
 				msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
@@ -480,7 +493,7 @@ void KxBusinessLogicMgr::AppCtrlLockDevMsgCallBack(std::shared_ptr<KxDevSession>
 		else
 		{
 			KxMsgHeader_Base msgRespHead_base;
-			auto msgHeader = msgPacket.getMsgHeader();
+			// auto msgHeader = msgPacket.getMsgHeader();
 			msgRespHead_base.nMsgId = msgHeader.nMsgId;
 			msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
 			msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
@@ -516,7 +529,7 @@ void KxBusinessLogicMgr::AppCtrlDevGuardMsgCallBack(std::shared_ptr<KxDevSession
 		{
 			// 需要做加密
 			KxMsgHeader_Base msgDevReqHead_base;
-			auto msgHeader = msgPacket.getMsgHeader();
+			// auto msgHeader = msgPacket.getMsgHeader();
 			msgDevReqHead_base.nMsgId = MSG_DEVCTRL_LOCKDEV;
 			msgDevReqHead_base.nSeqNum = msgHeader.nSeqNum;
 			msgDevReqHead_base.nTypeFlag = 0;
@@ -560,7 +573,7 @@ void KxBusinessLogicMgr::AppCtrlDevGuardMsgCallBack(std::shared_ptr<KxDevSession
 		else
 		{
 			KxMsgHeader_Base msgRespHead_base;
-			auto msgHeader = msgPacket.getMsgHeader();
+			// auto msgHeader = msgPacket.getMsgHeader();
 			msgRespHead_base.nMsgId = msgHeader.nMsgId;
 			msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
 			msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
@@ -596,7 +609,7 @@ void KxBusinessLogicMgr::AppCtrlOpenLockMsgCallBack(std::shared_ptr<KxDevSession
 		{
 			// 需要做加密
 			KxMsgHeader_Base msgDevReqHead_base;
-			auto msgHeader = msgPacket.getMsgHeader();
+			// auto msgHeader = msgPacket.getMsgHeader();
 			msgDevReqHead_base.nMsgId = MSG_DEVCTRL_OPENLOCK;
 			msgDevReqHead_base.nSeqNum = msgHeader.nSeqNum;
 			msgDevReqHead_base.nTypeFlag = 0;
@@ -640,7 +653,7 @@ void KxBusinessLogicMgr::AppCtrlOpenLockMsgCallBack(std::shared_ptr<KxDevSession
 		else
 		{
 			KxMsgHeader_Base msgRespHead_base;
-			auto msgHeader = msgPacket.getMsgHeader();
+			// auto msgHeader = msgPacket.getMsgHeader();
 			msgRespHead_base.nMsgId = msgHeader.nMsgId;
 			msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
 			msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
@@ -676,7 +689,7 @@ void KxBusinessLogicMgr::AppCtrlDevElecLockCallBack(std::shared_ptr<KxDevSession
 		{
 			// 需要做加密
 			KxMsgHeader_Base msgDevReqHead_base;
-			auto msgHeader = msgPacket.getMsgHeader();
+			// auto msgHeader = msgPacket.getMsgHeader();
 			msgDevReqHead_base.nMsgId = MSG_DEVCTRL_OPENELECLOCK;
 			msgDevReqHead_base.nSeqNum = msgHeader.nSeqNum;
 			msgDevReqHead_base.nTypeFlag = 0;
@@ -706,7 +719,7 @@ void KxBusinessLogicMgr::AppCtrlDevElecLockCallBack(std::shared_ptr<KxDevSession
 			{
 				// cst_nResp_Code_SEND_DEV_ERR
 				KxMsgHeader_Base msgRespHead_base;
-				auto msgHeader = msgPacket.getMsgHeader();
+				// auto msgHeader = msgPacket.getMsgHeader();
 				msgRespHead_base.nMsgId = msgHeader.nMsgId;
 				msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
 				msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
@@ -718,7 +731,7 @@ void KxBusinessLogicMgr::AppCtrlDevElecLockCallBack(std::shared_ptr<KxDevSession
 		else
 		{
 			KxMsgHeader_Base msgRespHead_base;
-			auto msgHeader = msgPacket.getMsgHeader();
+			// auto msgHeader = msgPacket.getMsgHeader();
 			msgRespHead_base.nMsgId = msgHeader.nMsgId;
 			msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
 			msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
@@ -728,6 +741,184 @@ void KxBusinessLogicMgr::AppCtrlDevElecLockCallBack(std::shared_ptr<KxDevSession
 		}
 		delete[] originMsgBody;
 		originMsgBody = nullptr;
+	}
+}
+
+void KxBusinessLogicMgr::AppCtrlDevFileDeliverCallBack(std::shared_ptr<KxDevSession> session, const KxMsgPacket_Basic &msgPacket)
+{
+	auto msgHeader = msgPacket.getMsgHeader();
+	auto pMsgBody = msgPacket.getMsgBodyBuf();
+	// bool brt=false;
+	if (msgHeader.nMsgBodyLen >= sizeof(KxAppDevCtrlFileDeliver_Base))
+	{
+		const std::time_t t_c = std::time(nullptr);
+		session->setLastTime(t_c);
+
+		KxAppDevCtrlFileDeliver_Base *pFileDeliver = (KxAppDevCtrlFileDeliver_Base *)pMsgBody;
+		unsigned int nFileLen = pFileDeliver->nFileLen;
+		unsigned int nHeaderLen = nFileLen;
+		// 查找对应的dev 的 session
+		unsigned int nDevId = pFileDeliver->nDevId;
+		auto devSession = session->getDevSession(nDevId);
+		if (devSession)
+		{
+			// 根据文件长度，分2020/2021下发
+			if (nFileLen > FILE_DATA_HEADER_ALLOW_LEN)
+			{
+				nHeaderLen = FILE_DATA_HEADER_ALLOW_LEN;
+			}
+			// 先发送2020
+			// 需要做加密
+			KxMsgHeader_Base msgDevReqHead_base;
+			// auto msgHeader = msgPacket.getMsgHeader();
+			msgDevReqHead_base.nMsgId = MSG_DEVCTRL_FILEDELIVER_HEADER;
+			msgDevReqHead_base.nSeqNum = msgHeader.nSeqNum;
+			msgDevReqHead_base.nTypeFlag = 0;
+
+			const unsigned int nBufLen = sizeof(KxDevCtrlFileDeliverHeader_OrMsg_Base) + nHeaderLen - FILE_DATA_BASE_LEN;
+			unsigned char szOriMsg[FILE_DATA_HEADER_ALLOW_LEN +FILE_DATA_BASE_LEN ]={0};
+			unsigned char* pOriMsg = szOriMsg;
+
+			//unsigned char *pOriMsg = new unsigned char[nBufLen + FILE_DATA_BASE_LEN];
+			bool brt(false);
+			// if (pOriMsg)
+			// {
+				KxDevCtrlFileDeliverHeader_OrMsg_Base &orimsg = *(KxDevCtrlFileDeliverHeader_OrMsg_Base *)pOriMsg;
+				orimsg.svrTime = pFileDeliver->svrTime;
+				auto devSessionId = devSession->GetSessionId();
+				orimsg.nSessionId = devSessionId;
+				orimsg.FileType = pFileDeliver->FileType;
+				std::strncpy(orimsg.szFileName, pFileDeliver->szFileName, sizeof(orimsg.szFileName));
+				orimsg.nFileLen = nFileLen;
+				memcpy(orimsg.fileMd5, pFileDeliver->fileMd5, 16 + nHeaderLen);
+
+				// unsigned int nBlocks = (nBufLen + AES_BLOCK_SIZE - 1) / AES_BLOCK_SIZE;
+				// unsigned int nMsgDataLen = nBlocks * AES_BLOCK_SIZE;
+
+				unsigned char szMsgBody[FILE_DATA_HEADER_ALLOW_LEN +FILE_DATA_BASE_LEN ]={0};
+				unsigned int nMsgDataLen = sizeof(szMsgBody);
+				unsigned char* pMsgFileBody = szMsgBody;
+
+				// unsigned char *pMsgFileBody = new unsigned char[nMsgDataLen + sizeof(int) + sizeof(short) + FILE_DATA_BASE_LEN];
+				// if (pMsgFileBody)
+				// {
+					brt = devSession->AES_encrypt(pOriMsg, nBufLen, pMsgFileBody, nMsgDataLen);
+					// std::stringstream ss_log;
+					// ss_log << "AES_encrypt, nBufLen: " << nBufLen << ", nMsgDataLen: " << nMsgDataLen << std::endl;
+					// KX_LOG_FUNC_(ss_log.str());
+					if (brt)
+					{
+						//KX_LOG_FUNC_(pOriMsg,nBufLen);
+						unsigned int *pData = (unsigned int *)(pMsgFileBody + nMsgDataLen);
+						*pData = nBufLen;
+						nMsgDataLen += sizeof(int);
+						unsigned short nCrc16 = crc16_ccitt(pOriMsg, nBufLen);
+						*(unsigned short *)(pMsgFileBody + nMsgDataLen) = nCrc16;
+						nMsgDataLen += sizeof(unsigned short);
+						msgDevReqHead_base.nMsgBodyLen = nMsgDataLen;
+						msgDevReqHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevReqHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+						// auto msgP = std::make_shared<KxMsgPacket_Basic>(msgPacket);
+						// auto LogicNode = std::make_shared<KxBussinessLogicNode>(session, msgP);
+
+						devSession->SendMsgPacket(msgDevReqHead_base, pMsgFileBody, true);
+
+						nFileLen -= nHeaderLen;
+						unsigned int nFileDataPos = nHeaderLen;
+						// 再继续发送2021报文
+						unsigned int nFilePacketLen(0);
+						KxMsgHeader_Base msgDevDeliverFile_base;
+						// auto msgHeader = msgPacket.getMsgHeader();
+						msgDevDeliverFile_base.nMsgId = MSG_DEVCTRL_FILEDELIVER_DATA;
+						msgDevDeliverFile_base.nSeqNum = msgHeader.nSeqNum;
+						msgDevDeliverFile_base.nTypeFlag = 0;
+						unsigned char szMsgBody_FileData[cst_FILE_DATA_PACKET_ALLOW_LEN + FILE_DATA_BASE_LEN] ={0};
+						unsigned char *pMsgBody_FileData = szMsgBody_FileData;
+						KxDevCtrlFileDeliverFileData_Base &deliverFileData = *(KxDevCtrlFileDeliverFileData_Base *)pMsgBody_FileData;
+						while (nFileLen > 0)
+						{
+							// 等待继续处理.....
+							if (nFileLen > cst_FILE_DATA_PACKET_ALLOW_LEN)
+							{
+								nFilePacketLen = cst_FILE_DATA_PACKET_ALLOW_LEN;
+							}
+							else
+							{
+								nFilePacketLen = nFileLen;
+							}
+							unsigned int nMsgPacketBodyLen = sizeof(KxDevCtrlFileDeliverFileData_Base) + nFilePacketLen - 1;
+							
+							
+							// unsigned char *pMsgBody_FileData = new unsigned char[nMsgPacketBodyLen + FILE_DATA_BASE_LEN];
+							// if (pMsgBody_FileData)
+							//{
+								
+								deliverFileData.nSessionId = devSessionId;
+								deliverFileData.FileType = orimsg.FileType;
+								std::strncpy(deliverFileData.szFileName, orimsg.szFileName, sizeof(deliverFileData.szFileName));
+								deliverFileData.nFileDataPos = nFileDataPos;
+								deliverFileData.nDataLen = (unsigned short)nFilePacketLen;
+								unsigned char *pFileData = pFileDeliver->szFileData + nFileDataPos;
+								memcpy(deliverFileData.fileData, pFileData, nFilePacketLen);
+
+								unsigned short *pCRC16 = (unsigned short *)(deliverFileData.fileData + nFilePacketLen);
+								*pCRC16 = crc16_ccitt((unsigned char *)&deliverFileData.nFileDataPos, sizeof(int) + sizeof(short) + nFilePacketLen);
+
+								msgDevDeliverFile_base.nMsgBodyLen = nMsgPacketBodyLen;
+								msgDevDeliverFile_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevDeliverFile_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+
+								devSession->SendMsgPacket(msgDevDeliverFile_base, pMsgBody_FileData, true);
+
+
+								nFileLen -= nFilePacketLen;
+								nFileDataPos += nFilePacketLen;
+
+								std::this_thread::sleep_for(1000ms);
+
+								// KX_LOG_FUNC_("Call delete[] pMsgBody_FileData");
+								// delete[] pMsgBody_FileData;
+								// pMsgBody_FileData = nullptr;
+								// KX_LOG_FUNC_("After Call delete[] pMsgBody_FileData");
+							// }
+							// else
+							// {
+							// 	break;
+							// }
+						}
+					}
+					// KX_LOG_FUNC_("Call delete[] pMsgBody");
+					// delete[] pMsgBody;
+					// pMsgBody = nullptr;
+					// KX_LOG_FUNC_("After Call delete[] pMsgBody");
+				//}
+				// KX_LOG_FUNC_("Call delete[] pOriMsg");
+				// delete[] pOriMsg;
+				// pOriMsg = nullptr;
+				// KX_LOG_FUNC_("After Call delete[] pOriMsg");
+			//}
+			if (!brt)
+			{
+				// cst_nResp_Code_SEND_DEV_ERR
+				KxMsgHeader_Base msgRespHead_base;
+				// auto msgHeader = msgPacket.getMsgHeader();
+				msgRespHead_base.nMsgId = msgHeader.nMsgId;
+				msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
+				msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
+				msgRespHead_base.nMsgBodyLen = 0;
+				msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+				session->SendRespPacket(msgRespHead_base, cst_nResp_Code_SEND_DEV_ERR, nullptr, false);
+			}
+		}
+		else
+		{
+			KxMsgHeader_Base msgRespHead_base;
+			// auto msgHeader = msgPacket.getMsgHeader();
+			msgRespHead_base.nMsgId = msgHeader.nMsgId;
+			msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
+			msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
+			msgRespHead_base.nMsgBodyLen = 0;
+			msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+			session->SendRespPacket(msgRespHead_base, cst_nResp_Code_DEV_OFFLINE, nullptr, false);
+		}
 	}
 }
 
