@@ -40,7 +40,7 @@ const int MSG_APPTEST_DEVCTRL_FILEDELIVER = 4020;
 const unsigned int AES_IV_BLOCK_SIZE = 16;
 const unsigned int FILE_DATA_BASE_LEN = 256;
 const unsigned int FILE_DATA_HEADER_ALLOW_LEN = 4096;
-const unsigned int cst_FILE_DATA_PACKET_ALLOW_LEN = 8192;
+const unsigned int cst_FILE_DATA_PACKET_ALLOW_LEN = 20480;
 
 #pragma pack(1)
 

@@ -76,6 +76,7 @@ void KxBusinessLogicMgr::dealOneMsg()
 
 	// std::cout << "recv_msg id  is " << msg_id;
 	std::string strLog = "recv_msg id  is " + std::to_string(msg_id);
+	strLog += " seqNum: " + std::to_string(msgHeader.nSeqNum);
 	if (msgHeader.nTypeFlag == cst_Resp_MsgType)
 		// std::cout << " resp ";
 		strLog += " resp ";
@@ -287,7 +288,7 @@ void KxBusinessLogicMgr::DevStatusMsgCallBack(std::shared_ptr<KxDevSession> sess
 		pqxx::work tx{c};
 		KxDevStatusPacketBody_Base *pDevStatus = (KxDevStatusPacketBody_Base *)msgPacket.getMsgBodyBuf();
 
-		KX_LOG_FUNC_((unsigned char *)pDevStatus, sizeof(KxDevStatusPacketBody_Base));
+		// KX_LOG_FUNC_((unsigned char *)pDevStatus, sizeof(KxDevStatusPacketBody_Base));
 
 		// auto tm_now = std::localtime(&t_c);
 		// std::string strnow = std::format("{:d}-{:d}-{:d} {:d}:{:d}:{:d}", tm_now->tm_year + 1900, tm_now->tm_mon + 1, tm_now->tm_mday, tm_now->tm_hour, tm_now->tm_min, tm_now->tm_sec);
@@ -790,7 +791,7 @@ void KxBusinessLogicMgr::AppCtrlDevFileDeliverCallBack(std::shared_ptr<KxDevSess
 				orimsg.FileType = pFileDeliver->FileType;
 				std::strncpy(orimsg.szFileName, pFileDeliver->szFileName, sizeof(orimsg.szFileName));
 				orimsg.nFileLen = nFileLen;
-				memcpy(orimsg.fileMd5, pFileDeliver->fileMd5, 16 + nHeaderLen);
+				std::memcpy(orimsg.fileMd5, pFileDeliver->fileMd5, 16 + nHeaderLen);
 
 				// unsigned int nBlocks = (nBufLen + AES_BLOCK_SIZE - 1) / AES_BLOCK_SIZE;
 				// unsigned int nMsgDataLen = nBlocks * AES_BLOCK_SIZE;
@@ -821,6 +822,7 @@ void KxBusinessLogicMgr::AppCtrlDevFileDeliverCallBack(std::shared_ptr<KxDevSess
 						// auto LogicNode = std::make_shared<KxBussinessLogicNode>(session, msgP);
 
 						devSession->SendMsgPacket(msgDevReqHead_base, pMsgFileBody, true);
+						std::this_thread::sleep_for(20ms);
 
 						nFileLen -= nHeaderLen;
 						unsigned int nFileDataPos = nHeaderLen;
@@ -851,19 +853,19 @@ void KxBusinessLogicMgr::AppCtrlDevFileDeliverCallBack(std::shared_ptr<KxDevSess
 							// unsigned char *pMsgBody_FileData = new unsigned char[nMsgPacketBodyLen + FILE_DATA_BASE_LEN];
 							// if (pMsgBody_FileData)
 							//{
-								
 								deliverFileData.nSessionId = devSessionId;
 								deliverFileData.FileType = orimsg.FileType;
 								std::strncpy(deliverFileData.szFileName, orimsg.szFileName, sizeof(deliverFileData.szFileName));
 								deliverFileData.nFileDataPos = nFileDataPos;
 								deliverFileData.nDataLen = (unsigned short)nFilePacketLen;
 								unsigned char *pFileData = pFileDeliver->szFileData + nFileDataPos;
-								memcpy(deliverFileData.fileData, pFileData, nFilePacketLen);
+								std::memcpy(deliverFileData.fileData, pFileData, nFilePacketLen);
 
 								unsigned short *pCRC16 = (unsigned short *)(deliverFileData.fileData + nFilePacketLen);
 								*pCRC16 = crc16_ccitt((unsigned char *)&deliverFileData.nFileDataPos, sizeof(int) + sizeof(short) + nFilePacketLen);
 
 								msgDevDeliverFile_base.nMsgBodyLen = nMsgPacketBodyLen;
+								++ msgDevDeliverFile_base.nSeqNum ;
 								msgDevDeliverFile_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevDeliverFile_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 
 								devSession->SendMsgPacket(msgDevDeliverFile_base, pMsgBody_FileData, true);
@@ -872,7 +874,13 @@ void KxBusinessLogicMgr::AppCtrlDevFileDeliverCallBack(std::shared_ptr<KxDevSess
 								nFileLen -= nFilePacketLen;
 								nFileDataPos += nFilePacketLen;
 
-								std::this_thread::sleep_for(1000ms);
+								std::stringstream ss_log;
+								ss_log << "nMsgPacketBodyLen: " << nMsgPacketBodyLen << ", nFileDataPos: " << nFileDataPos << ", nFilePacketLen: " << nFilePacketLen;
+								KX_LOG_FUNC_(ss_log.str());
+
+								// KX_LOG_FUNC_(pMsgBody_FileData,nMsgPacketBodyLen);
+
+								std::this_thread::sleep_for(80ms);
 
 								// KX_LOG_FUNC_("Call delete[] pMsgBody_FileData");
 								// delete[] pMsgBody_FileData;

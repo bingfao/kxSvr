@@ -4,7 +4,7 @@
 #define _KX_SESSION_HPP_
 
 #include <asio.hpp>
-#include <queue>
+#include <list>
 #include "KxMsgNode.hpp"
 #include "KxMsgDef.h"
 #include "KxLogger.hpp"
@@ -102,8 +102,8 @@ public:
 	}
 
 private:
-	void HandleMsgWrited(const asio::error_code &error, std::shared_ptr<KxDevSession> shared_self);
-	void HandleRespWrited(const asio::error_code &error, std::shared_ptr<KxDevSession> shared_self);
+	void HandleMsgWrited(const asio::error_code &error, std::shared_ptr<KxMsgLogicNode> logicNode);
+	void HandleRespWrited(const asio::error_code &error, std::shared_ptr<KxMsgPacket_Basic> msgPacket);
 	asio::ip::tcp::socket m_socket;
 	std::string m_strAddr;
 	unsigned int m_nDevId;
@@ -111,8 +111,8 @@ private:
 	unsigned char m_dataBuf[MAX_LENGTH];
 	KxServer *m_server;
 	bool m_b_close;
-	std::queue<std::shared_ptr<KxMsgPacket_Basic>> m_svrRespToSend_que; // 这里存放应答包
-	std::queue<std::shared_ptr<KxMsgLogicNode>> m_svrMsgToSend_que;
+	std::list<std::shared_ptr<KxMsgPacket_Basic>> m_svrRespToSend_lst; // 这里存放应答包
+	std::list<std::shared_ptr<KxMsgLogicNode>> m_svrMsgToSend_lst;
 	std::mutex m_send_mutex; // 发送互斥量
 
 	asio::io_context &m_io_context;

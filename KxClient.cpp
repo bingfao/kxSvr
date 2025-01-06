@@ -159,8 +159,10 @@ int main(int argc, char *argv[])
         msg_b.nMsgId = 4020;
 
         std::string strFileData;
-        const std::string strFileName = "weather.mp3";
-        const std::string strFileUrl = "./weather.mp3";
+        // const std::string strFileName = "weather.mp3";
+        // const std::string strFileUrl = "./weather.mp3";
+        const std::string strFileName = "dev.json";
+        const std::string strFileUrl = "./dev.json";
         if (std::ifstream is{strFileUrl, std::ios::binary | std::ios::ate})
         {
           auto size = is.tellg();
@@ -313,32 +315,32 @@ int main(int argc, char *argv[])
 
 void KxClient::startRecvMsgHandlingThread()
 {
+  m_b_thdExit = false;
   m_recvMsgHandling_thread = std::thread(&KxClient::thdFun_doHandleRecvedMsg, this);
 }
 
 void KxClient::dealOneItem()
 {
-  auto item = reeced_msgs_.front();
-  onHanleMsg(item);
-  reeced_msgs_.pop_front();
+  if (!reeced_msgs_.empty())
+  {
+    auto item = reeced_msgs_.front();
+    onHanleMsg(item);
+    reeced_msgs_.pop_front();
+  }
 }
 
 void KxClient::thdFun_doHandleRecvedMsg()
 {
   for (;;)
   {
+    // 判断是否为关闭状态，把所有逻辑执行完后则退出循环
     std::unique_lock<std::mutex> unique_lk(m_mutex_queueRecved);
-    // 判断队列为空则用条件变量阻塞等待，并释放锁
     while (reeced_msgs_.empty() && !m_b_thdExit)
     {
       m_cond_consume.wait(unique_lk);
     }
-    // 判断是否为关闭状态，把所有逻辑执行完后则退出循环
     if (m_b_thdExit)
     {
-      // for (auto &item : reeced_msgs_)
-      // {
-      // }
       reeced_msgs_.clear();
       break;
     }
@@ -351,19 +353,26 @@ void KxClient::thdFun_doHandleRecvedMsg()
 
 void KxClient::AddRecvedMsgToQueue()
 {
-  std::unique_lock<std::mutex> unique_lk(m_mutex_queueRecved);
-  reeced_msgs_.emplace_back(std::make_shared<KxMsgPacket_Basic>(read_msg_, m_pReadMsgBodyBuf, true));
-  if (reeced_msgs_.size() == 1)
+  
+  auto msg_h = read_msg_.getMsgHeader();
+  std::cout << "AddRecvedMsgToQueue : " << msg_h.nMsgId << ", msgBodytLen: " << msg_h.nMsgBodyLen << ", seqNum: " << msg_h.nSeqNum << std::endl;
+  if (read_msg_.getBodyLen())
   {
-    unique_lk.unlock();
-    m_cond_consume.notify_one();
+    std::unique_lock<std::mutex> unique_lk(m_mutex_queueRecved);
+    reeced_msgs_.emplace_back(std::make_shared<KxMsgPacket_Basic>(read_msg_, m_pReadMsgBodyBuf, true));
   }
+  else
+  {
+    std::unique_lock<std::mutex> unique_lk(m_mutex_queueRecved);
+    reeced_msgs_.emplace_back(std::make_shared<KxMsgPacket_Basic>(read_msg_, nullptr, false));
+  }
+  m_cond_consume.notify_one();
 }
 
 void KxClient::onHanleMsg(std::shared_ptr<KxMsgPacket_Basic> msg_)
 {
   auto msg_h = msg_->getMsgHeader();
-  std::cout << "Handle Recved Msg: " << msg_h.nMsgId << ", msgBodytLen: " << msg_h.nMsgBodyLen << std::endl;
+  std::cout << "Handle Recved Msg: " << msg_h.nMsgId << ", msgBodytLen: " << msg_h.nMsgBodyLen << ", seqNum: " << msg_h.nSeqNum << std::endl;
   if (msg_h.nTypeFlag == cst_Resp_MsgType)
   {
     std::cout << "RespCode: " << msg_->getRespCode() << std::endl;
@@ -438,98 +447,98 @@ void KxClient::onHanleMsg(std::shared_ptr<KxMsgPacket_Basic> msg_)
     write(msg);
   }
   break;
-  // case 2020:
-  // {
-  //   // 记录下文件头信息
-  //   auto nBodyLen = read_msg_.getBodyLen();
-  //   if (nBodyLen)
-  //   {
-  //     unsigned char* pMsgBody = (unsigned char*)read_msg_Body.data();
-  //     // 是AES后的数据，需要解密
-  //     unsigned char szOut[5120] = {0};
-  //     unsigned int nOutDataLen = sizeof(szOut);
-  //     int nMsgDataLen = nBodyLen - 6;
-  //     if (AES_decryptPacket(pMsgBody, nMsgDataLen, szOut, nOutDataLen))
-  //     {
-  //       unsigned int *pnDataLen = (unsigned int *)(pMsgBody + nMsgDataLen);
-  //       unsigned short *pMsgCrc = (unsigned short *)(pnDataLen + 1);
-  //       unsigned short nMsgCRC = crc16_ccitt(szOut, nOutDataLen);
-  //       if (nOutDataLen == *pnDataLen && nMsgCRC == *pMsgCrc)
-  //       {
-  //         if (nOutDataLen > sizeof(KxDevCtrlFileDeliverHeader_OrMsg_Base))
-  //         {
-  //           memcpy(&m_recving_FileHeader, szOut, sizeof(KxDevCtrlFileDeliverHeader_OrMsg_Base));
-  //           KxDeliverFileDataItem dataitem;
-  //           dataitem.nDataLen = nOutDataLen - sizeof(KxDevCtrlFileDeliverHeader_OrMsg_Base) + FILE_DATA_BASE_LEN;
-  //           dataitem.nDataPos = 0;
-  //           dataitem.strData.assign(dataitem.nDataLen, '\0');
-  //           memcpy(&dataitem.strData[0], szOut + sizeof(KxDevCtrlFileDeliverHeader_OrMsg_Base) - FILE_DATA_BASE_LEN, dataitem.nDataLen);
-  //           m_vec_recving_FileData.push_back(std::move(dataitem));
-  //         }
-  //       }
-  //     }
-  //     KxMsgHeader_Base msgRespHead_base;
-  //     msgRespHead_base.nMsgId = msg_h.nMsgId;
-  //     msgRespHead_base.nSeqNum = msg_h.nSeqNum;
-  //     msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
-  //     msgRespHead_base.nMsgBodyLen = 0;
-  //     unsigned int nHeaderExtra[2] = {0};
-  //     nHeaderExtra[0] = cst_nResp_Code_OK;
-  //     auto msg = std::make_shared<KxMsgPacket_Basic>(msgRespHead_base, nHeaderExtra, nullptr, false);
-  //     msg->calculate_crc();
-  //     write(msg);
-  //   }
-  // }
-  // break;
-  // case 2021:
-  // {
-  //   // 记录每一段数据信息，全部完成后校验MD5，校验通过后，生成文件
-  //   auto nBodyLen = read_msg_.getBodyLen();
-  //   if (nBodyLen >= sizeof(KxDevCtrlFileDeliverFileData_Base))
-  //   {
-  //     auto pMsgBody = read_msg_Body.data();
-  //     KxDevCtrlFileDeliverFileData_Base *pFileData = (KxDevCtrlFileDeliverFileData_Base *)pMsgBody;
-  //     if (strcmp(pFileData->szFileName, m_recving_FileHeader.szFileName) == 0 && nBodyLen - sizeof(KxDevCtrlFileDeliverFileData_Base) + 1 == pFileData->nDataLen)
-  //     {
-  //       KxDeliverFileDataItem dataitem;
-  //       dataitem.nDataLen = pFileData->nDataLen;
-  //       dataitem.nDataPos = pFileData->nFileDataPos;
-  //       dataitem.strData.assign(dataitem.nDataLen, '\0');
-  //       memcpy(&dataitem.strData[0], pFileData->fileData, pFileData->nDataLen);
-  //       m_vec_recving_FileData.push_back(std::move(dataitem));
-  //       if (pFileData->nFileDataPos + pFileData->nDataLen == m_recving_FileHeader.nFileLen)
-  //       {
-  //         // check to save
-  //         std::string strFileContent;
-  //         for (auto item : m_vec_recving_FileData)
-  //         {
-  //           strFileContent.append(item.strData);
-  //         }
-  //         // 计算MD5
-  //         std::string strOutFileName = "./saved_";
-  //         strOutFileName += m_recving_FileHeader.szFileName;
-  //         std::ofstream of_file(strOutFileName, std::ios_base::binary|std::ios_base::out);
-  //         if (of_file)
-  //         {
-  //           of_file.write(&strFileContent[0], m_recving_FileHeader.nFileLen);
-  //           of_file.close();
-  //         }
-  //         m_vec_recving_FileData.clear();
-  //       }
-  //     }
-  //   }
-  //   KxMsgHeader_Base msgRespHead_base;
-  //   msgRespHead_base.nMsgId = msg_h.nMsgId;
-  //   msgRespHead_base.nSeqNum = msg_h.nSeqNum;
-  //   msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
-  //   msgRespHead_base.nMsgBodyLen = 0;
-  //   unsigned int nHeaderExtra[2] = {0};
-  //   nHeaderExtra[0] = cst_nResp_Code_OK;
-  //   auto msg = std::make_shared<KxMsgPacket_Basic>(msgRespHead_base, nHeaderExtra, nullptr, false);
-  //   msg->calculate_crc();
-  //   write(msg);
-  // }
-  // break;
+  case 2020:
+  {
+    // 记录下文件头信息
+    auto nBodyLen = msg_->getBodyLen();
+    if (nBodyLen)
+    {
+      unsigned char *pMsgBody = msg_->getMsgBodyBuf();
+      // 是AES后的数据，需要解密
+      unsigned char szOut[5120] = {0};
+      unsigned int nOutDataLen = sizeof(szOut);
+      int nMsgDataLen = nBodyLen - 6;
+      if (AES_decryptPacket(pMsgBody, nMsgDataLen, szOut, nOutDataLen))
+      {
+        unsigned int *pnDataLen = (unsigned int *)(pMsgBody + nMsgDataLen);
+        unsigned short *pMsgCrc = (unsigned short *)(pnDataLen + 1);
+        unsigned short nMsgCRC = crc16_ccitt(szOut, nOutDataLen);
+        if (nOutDataLen == *pnDataLen && nMsgCRC == *pMsgCrc)
+        {
+          if (nOutDataLen > sizeof(KxDevCtrlFileDeliverHeader_OrMsg_Base))
+          {
+            memcpy(&m_recving_FileHeader, szOut, sizeof(KxDevCtrlFileDeliverHeader_OrMsg_Base));
+            KxDeliverFileDataItem dataitem;
+            dataitem.nDataLen = nOutDataLen - sizeof(KxDevCtrlFileDeliverHeader_OrMsg_Base) + FILE_DATA_BASE_LEN;
+            dataitem.nDataPos = 0;
+            dataitem.strData.assign(dataitem.nDataLen, '\0');
+            memcpy(&dataitem.strData[0], szOut + sizeof(KxDevCtrlFileDeliverHeader_OrMsg_Base) - FILE_DATA_BASE_LEN, dataitem.nDataLen);
+            m_vec_recving_FileData.push_back(std::move(dataitem));
+          }
+        }
+      }
+      KxMsgHeader_Base msgRespHead_base;
+      msgRespHead_base.nMsgId = msg_h.nMsgId;
+      msgRespHead_base.nSeqNum = msg_h.nSeqNum;
+      msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
+      msgRespHead_base.nMsgBodyLen = 0;
+      unsigned int nHeaderExtra[2] = {0};
+      nHeaderExtra[0] = cst_nResp_Code_OK;
+      auto msg = std::make_shared<KxMsgPacket_Basic>(msgRespHead_base, nHeaderExtra, nullptr, false);
+      msg->calculate_crc();
+      write(msg);
+    }
+  }
+  break;
+  case 2021:
+  {
+    // 记录每一段数据信息，全部完成后校验MD5，校验通过后，生成文件
+    auto nBodyLen = msg_->getBodyLen();
+    if (nBodyLen >= sizeof(KxDevCtrlFileDeliverFileData_Base))
+    {
+      auto pMsgBody = msg_->getMsgBodyBuf();
+      KxDevCtrlFileDeliverFileData_Base *pFileData = (KxDevCtrlFileDeliverFileData_Base *)pMsgBody;
+      if (strcmp(pFileData->szFileName, m_recving_FileHeader.szFileName) == 0 && nBodyLen - sizeof(KxDevCtrlFileDeliverFileData_Base) + 1 == pFileData->nDataLen)
+      {
+        KxDeliverFileDataItem dataitem;
+        dataitem.nDataLen = pFileData->nDataLen;
+        dataitem.nDataPos = pFileData->nFileDataPos;
+        dataitem.strData.assign(dataitem.nDataLen, '\0');
+        memcpy(&dataitem.strData[0], pFileData->fileData, pFileData->nDataLen);
+        m_vec_recving_FileData.push_back(std::move(dataitem));
+        if (pFileData->nFileDataPos + pFileData->nDataLen == m_recving_FileHeader.nFileLen)
+        {
+          // check to save
+          std::string strFileContent;
+          for (auto item : m_vec_recving_FileData)
+          {
+            strFileContent.append(item.strData);
+          }
+          // 计算MD5
+          std::string strOutFileName = "./saved_";
+          strOutFileName += m_recving_FileHeader.szFileName;
+          std::ofstream of_file(strOutFileName, std::ios_base::binary | std::ios_base::out);
+          if (of_file)
+          {
+            of_file.write(&strFileContent[0], m_recving_FileHeader.nFileLen);
+            of_file.close();
+          }
+          m_vec_recving_FileData.clear();
+        }
+      }
+    }
+    KxMsgHeader_Base msgRespHead_base;
+    msgRespHead_base.nMsgId = msg_h.nMsgId;
+    msgRespHead_base.nSeqNum = msg_h.nSeqNum;
+    msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
+    msgRespHead_base.nMsgBodyLen = 0;
+    unsigned int nHeaderExtra[2] = {0};
+    nHeaderExtra[0] = cst_nResp_Code_OK;
+    auto msg = std::make_shared<KxMsgPacket_Basic>(msgRespHead_base, nHeaderExtra, nullptr, false);
+    msg->calculate_crc();
+    write(msg);
+  }
+  break;
   default:
     break;
   }

@@ -45,6 +45,7 @@ public:
 				m_pMsgBodyBuf = pBody;
 		}
 	}
+	
 	KxMsgPacket_Basic(const KxMsgPacket_Basic &msg_, unsigned char *pBody, bool bNeedDelBuf)
 	{
 		KxMsgPacket_Basic();
@@ -58,13 +59,17 @@ public:
 			{
 				m_pMsgBodyBuf = new unsigned char[m_msgHeader.nMsgBodyLen];
 				if (pBody)
-					memcpy(m_pMsgBodyBuf, pBody, m_msgHeader.nMsgBodyLen);
+				{
+					std::memcpy(m_pMsgBodyBuf, pBody, m_msgHeader.nMsgBodyLen);
+				}
 			}
 		}
 		else
 		{
 			if (pBody)
+			{
 				m_pMsgBodyBuf = pBody;
+			}
 		}
 	}
 	~KxMsgPacket_Basic()
