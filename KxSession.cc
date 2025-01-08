@@ -12,7 +12,7 @@
 	asio::use_awaitable_t(__FILE__, __LINE__, __PRETTY_FUNCTION__)
 #endif
 
-constexpr int MAX_SENDQUE = 512;
+constexpr int MAX_SENDQUE = 2048;
 
 KxDevSession::KxDevSession(asio::io_context &io_context, KxServer *server)
 	: m_io_context(io_context), m_socket(io_context), m_server(server), m_b_close(false), m_nSessionId(0)

@@ -161,8 +161,8 @@ int main(int argc, char *argv[])
         std::string strFileData;
         // const std::string strFileName = "weather.mp3";
         // const std::string strFileUrl = "./weather.mp3";
-        const std::string strFileName = "dev.json";
-        const std::string strFileUrl = "./dev.json";
+        const std::string strFileName = "pekon.pptx";
+        const std::string strFileUrl = "d:/pekon.pptx";
         if (std::ifstream is{strFileUrl, std::ios::binary | std::ios::ate})
         {
           auto size = is.tellg();

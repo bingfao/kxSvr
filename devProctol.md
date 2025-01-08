@@ -280,7 +280,7 @@ respcode为0时：
 
 
 ## 设备事件上报
-- MsgId  1010
+- MsgId  1012
 - CryptFlag 1
 ### 包体部分
 **注意：包体部分是AES之后的数据，需解密后处理**
@@ -309,6 +309,65 @@ respcode为0时：
 - crc16     2Byte    //原始数据的crc16
 
 
+
+
+## 设备接收文件完成  
+在每次接收文件2020/2021全部完成后，设备发送该报文到svr
+- MsgId  1020
+- CryptFlag 0
+### 包体部分 
+- Devtime  localtime
+    - year         2Byte
+    - month        1Byte
+    - day          1Byte
+    - hour         1Byte
+    - min          1Byte
+    - second       1Byte   timestamp
+- FileType        1Byte 
+    - 1                 固件版本等系统文件
+    - 2                 媒体文件
+- FileName        32Byte  char utf-8  || 需要对文件名的规则进行约定，以实现固件OTA升级以及媒体文件等更新下发
+    - "bms"            对应BMS固件
+    - "motorcontrol"    对应电机控制器
+    - "maincontrol"     对应主控
+    - "dashboard"       对应仪表盘
+    - "weather.mp3"     对应天气提示
+- FileLen         4Byte  
+
+
+### 应答包
+- RespCode
+    - 0   Ok
+    - 1   拒绝
+
+
+## 文件更新下载
+- MsgId  1022
+- CryptFlag 0
+
+### 包体部分 
+- FileType        1Byte 
+    - 1                 固件版本等系统文件
+    - 2                 媒体文件
+- FileName        32Byte  char utf-8  || 需要对文件名的规则进行约定，以实现固件OTA升级以及媒体文件等更新下发
+    - "bms"            对应BMS固件
+    - "motorcontrol"    对应电机控制器
+    - "maincontrol"     对应主控
+    - "dashboard"       对应仪表盘
+    - "weather.mp3"     对应天气提示
+- FileURL_KEY     16Byte  
+- FileDataPos     4Byte   请求文件数据的起始位置
+- nDataLen        2Byte   数据的长度  每包不超过20k   
+
+
+### 应答包
+- RespCode
+    - 0   Ok
+    - 1   拒绝   
+- FileDataPos     4Byte   本包数据在文件数据的起始位置
+- nDataLen        2Byte   数据的长度  每包不超过20k 
+- FileHData          
+- crc16           2Byte    包体部分从FileDataPos到FileData的crc16
 
 
 # --------------   svrInstance -----> dev
@@ -467,13 +526,45 @@ respcode为0时：
 - FileName        32Byte  char utf-8 
 - FileDataPos     4Byte   本包数据在文件数据的起始位置
 - nDataLen        2Byte   数据的长度  每包不超过20k 
-- FileHData          
+- FileData          
 - crc16           2Byte    包体部分从FileDataPos到FileData的crc16
 
 ### 应答包
 - RespCode
     - 0   Ok
     - 1   拒绝
+
+
+## 文件更新下载通知
+- MsgId  2022
+- CryptFlag 1
+
+### 包体部分 
+**注意：包体部分是AES之后的数据，设备端需解密后验证时间和SessionId后处理**
+- 加密部分报文
+    - svrtime         8Byte timestamp  localtime 
+    - devSessionId    4Byte
+    - FileType        1Byte 
+        - 1                 固件版本等系统文件
+        - 2                 媒体文件
+    - FileName        32Byte  char utf-8  || 需要对文件名的规则进行约定，以实现固件OTA升级以及媒体文件等更新下发
+        - "bms"            对应BMS固件
+        - "motorcontrol"    对应电机控制器
+        - "maincontrol"     对应主控
+        - "dashboard"       对应仪表盘
+        - "weather.mp3"     对应天气提示
+    - FileLen         4Byte  
+    - FileMD5         16Byte
+    - FileURL_KEY     16Byte    
+- nDataLen     4Byte  //原始数据的长度
+- crc16        2Byte  //原始数据的crc16
+
+
+### 应答包
+- RespCode
+    - 0   Ok
+    - 1   拒绝   //当MCU存储空间不足等情况，回复拒绝
+
 
 
 ## 授权解锁设备

@@ -18,6 +18,7 @@ const unsigned int cst_nResp_Code_SEND_DEV_ERR = 5;
 const int MSG_DEV_REGISTER = 1001;
 const int MSG_DEV_STATUS = 1002;
 const int MSG_DEV_USED_TRAFFIC = 1004;
+const int MSG_DEV_FILE_RECV_OK = 1020;
 
 const int MSG_DEVCTRL_OPENLOCK = 2001;
 const int MSG_DEVCTRL_LOCKDEV = 2002;
@@ -255,6 +256,21 @@ struct KxDevCtrlFileDeliverHeader_OrMsg_Base
 	unsigned int nFileLen;
 	unsigned char fileMd5[16];
 	unsigned char fileData[FILE_DATA_BASE_LEN];
+};
+
+struct KxDevFileRecvOK_Msg
+{
+	unsigned short tmYear;
+	unsigned char tmMonth;
+	unsigned char tmDay;
+	unsigned char tmHour;
+	unsigned char tmMin;
+	unsigned char tmSec;
+
+	unsigned char FileType;
+	char szFileName[32];
+	unsigned int nFileLen;
+	unsigned char fileMd5[16];
 };
 
 struct KxDevCtrlFileDeliverFileData_Base
