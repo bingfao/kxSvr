@@ -27,6 +27,7 @@ const int MSG_DEVCTRL_OPENELECLOCK = 2004;
 const int MSG_DEVCTRL_LIGHT = 2005;
 const int MSG_DEVCTRL_FILEDELIVER_HEADER = 2020;
 const int MSG_DEVCTRL_FILEDELIVER_DATA = 2021;
+const int MSG_DEVCTRL_FILETOUPDATE_NOTIFY = 2022;
 
 const int MSG_WEBSVR_REGISTER = 9001;
 const int MSG_WEBSVR_HEARTBEAT = 9002;
@@ -266,11 +267,21 @@ struct KxDevFileRecvOK_Msg
 	unsigned char tmHour;
 	unsigned char tmMin;
 	unsigned char tmSec;
-
 	unsigned char FileType;
 	char szFileName[32];
 	unsigned int nFileLen;
 	unsigned char fileMd5[16];
+};
+
+struct KxDevFileUpdateNotify_OrMsg
+{
+	std::time_t svrTime;
+	unsigned int nSessionId;
+	unsigned char FileType;
+	char szFileName[32];
+	unsigned int nFileLen;
+	unsigned char fileMd5[16];
+	unsigned char fileURL_KEY[16];
 };
 
 struct KxDevCtrlFileDeliverFileData_Base

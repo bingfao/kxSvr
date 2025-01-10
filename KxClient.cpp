@@ -13,6 +13,7 @@ const unsigned char default_aes_iv[] = {0x13, 0xF1, 0xDA, 0xC8, 0x8B, 0xB6, 0xE2
 
 const unsigned char dev10001_aes_key[] = {0x51, 0x5D, 0x3D, 0x22, 0x97, 0x47, 0xC8, 0xFD, 0x9F, 0x30, 0x41, 0xD0, 0x8C, 0x0A, 0xE9, 0x10};
 const unsigned char dev10002_aes_key[] = {0xb9, 0xde, 0x35, 0xcf, 0x97, 0x2c, 0x80, 0x4b, 0x0c, 0x4b, 0x90, 0x0f, 0x33, 0xe3, 0x28, 0x48};
+const unsigned char dev10009_aes_key[] = {0xfa, 0x91, 0x97, 0xfe, 0x55, 0xd5, 0x34, 0xe9, 0x41, 0x5a, 0x89, 0x6a, 0x84, 0x1f, 0xb5, 0x4f};
 
 // const int max_body_length = 255;
 
@@ -87,6 +88,9 @@ int main(int argc, char *argv[])
         case 10002:
           c.setAES_Key(dev10002_aes_key);
           break;
+        case 10009:
+          c.setAES_Key(dev10009_aes_key);
+          break;
         }
         nHeaderExtra[1] = 0;
         auto msg = std::make_shared<KxMsgPacket_Basic>(msg_b, nHeaderExtra, (unsigned char *)&tbody, true);
@@ -159,10 +163,10 @@ int main(int argc, char *argv[])
         msg_b.nMsgId = 4020;
 
         std::string strFileData;
-        // const std::string strFileName = "weather.mp3";
-        // const std::string strFileUrl = "./weather.mp3";
-        const std::string strFileName = "pekon.pptx";
-        const std::string strFileUrl = "d:/pekon.pptx";
+        const std::string strFileName = "weather.mp3";
+        const std::string strFileUrl = "./weather.mp3";
+        // const std::string strFileName = "pekon.pptx";
+        // const std::string strFileUrl = "d:/pekon.pptx";
         if (std::ifstream is{strFileUrl, std::ios::binary | std::ios::ate})
         {
           auto size = is.tellg();
@@ -179,7 +183,7 @@ int main(int argc, char *argv[])
             {
               KxAppDevCtrlFileDeliver_Base &dev_msg = *(KxAppDevCtrlFileDeliver_Base *)pFileDeliverMsg;
               dev_msg.devtype = 1;
-              dev_msg.nDevId = 10002;
+              dev_msg.nDevId = 10009;
               dev_msg.nSysUsrId = 900001;
               dev_msg.svrTime = std::time(nullptr);
               dev_msg.FileType = 1;
@@ -353,7 +357,7 @@ void KxClient::thdFun_doHandleRecvedMsg()
 
 void KxClient::AddRecvedMsgToQueue()
 {
-  
+
   auto msg_h = read_msg_.getMsgHeader();
   std::cout << "AddRecvedMsgToQueue : " << msg_h.nMsgId << ", msgBodytLen: " << msg_h.nMsgBodyLen << ", seqNum: " << msg_h.nSeqNum << std::endl;
   if (read_msg_.getBodyLen())
@@ -391,6 +395,7 @@ void KxClient::onHanleMsg(std::shared_ptr<KxMsgPacket_Basic> msg_)
         {
           m_nSessionId = *(unsigned int *)m_pReadMsgBodyBuf;
           setAES_Iv(m_pReadMsgBodyBuf + 4);
+          KX_LOG_FUNC_(m_aes_iv, sizeof(m_aes_iv));
           std::unique_lock<std::mutex> lock_sended(m_mutex_sended);
           sended_msgs_.remove(send_msg);
         }
@@ -460,20 +465,25 @@ void KxClient::onHanleMsg(std::shared_ptr<KxMsgPacket_Basic> msg_)
       int nMsgDataLen = nBodyLen - 6;
       if (AES_decryptPacket(pMsgBody, nMsgDataLen, szOut, nOutDataLen))
       {
-        unsigned int *pnDataLen = (unsigned int *)(pMsgBody + nMsgDataLen);
-        unsigned short *pMsgCrc = (unsigned short *)(pnDataLen + 1);
-        unsigned short nMsgCRC = crc16_ccitt(szOut, nOutDataLen);
-        if (nOutDataLen == *pnDataLen && nMsgCRC == *pMsgCrc)
+        // KX_LOG_FUNC_(pMsgBody, nMsgDataLen);
+        // KX_LOG_FUNC_(szOut, nOutDataLen);
+        if (0)
         {
-          if (nOutDataLen > sizeof(KxDevCtrlFileDeliverHeader_OrMsg_Base))
+          unsigned int *pnDataLen = (unsigned int *)(pMsgBody + nMsgDataLen);
+          unsigned short *pMsgCrc = (unsigned short *)(pnDataLen + 1);
+          unsigned short nMsgCRC = crc16_ccitt(szOut, nOutDataLen);
+          if (nOutDataLen == *pnDataLen && nMsgCRC == *pMsgCrc)
           {
-            memcpy(&m_recving_FileHeader, szOut, sizeof(KxDevCtrlFileDeliverHeader_OrMsg_Base));
-            KxDeliverFileDataItem dataitem;
-            dataitem.nDataLen = nOutDataLen - sizeof(KxDevCtrlFileDeliverHeader_OrMsg_Base) + FILE_DATA_BASE_LEN;
-            dataitem.nDataPos = 0;
-            dataitem.strData.assign(dataitem.nDataLen, '\0');
-            memcpy(&dataitem.strData[0], szOut + sizeof(KxDevCtrlFileDeliverHeader_OrMsg_Base) - FILE_DATA_BASE_LEN, dataitem.nDataLen);
-            m_vec_recving_FileData.push_back(std::move(dataitem));
+            if (nOutDataLen > sizeof(KxDevCtrlFileDeliverHeader_OrMsg_Base))
+            {
+              memcpy(&m_recving_FileHeader, szOut, sizeof(KxDevCtrlFileDeliverHeader_OrMsg_Base));
+              KxDeliverFileDataItem dataitem;
+              dataitem.nDataLen = nOutDataLen - sizeof(KxDevCtrlFileDeliverHeader_OrMsg_Base) + FILE_DATA_BASE_LEN;
+              dataitem.nDataPos = 0;
+              dataitem.strData.assign(dataitem.nDataLen, '\0');
+              memcpy(&dataitem.strData[0], szOut + sizeof(KxDevCtrlFileDeliverHeader_OrMsg_Base) - FILE_DATA_BASE_LEN, dataitem.nDataLen);
+              m_vec_recving_FileData.push_back(std::move(dataitem));
+            }
           }
         }
       }
@@ -493,37 +503,40 @@ void KxClient::onHanleMsg(std::shared_ptr<KxMsgPacket_Basic> msg_)
   case 2021:
   {
     // 记录每一段数据信息，全部完成后校验MD5，校验通过后，生成文件
-    auto nBodyLen = msg_->getBodyLen();
-    if (nBodyLen >= sizeof(KxDevCtrlFileDeliverFileData_Base))
+    if (0)
     {
-      auto pMsgBody = msg_->getMsgBodyBuf();
-      KxDevCtrlFileDeliverFileData_Base *pFileData = (KxDevCtrlFileDeliverFileData_Base *)pMsgBody;
-      if (strcmp(pFileData->szFileName, m_recving_FileHeader.szFileName) == 0 && nBodyLen - sizeof(KxDevCtrlFileDeliverFileData_Base) + 1 == pFileData->nDataLen)
+      auto nBodyLen = msg_->getBodyLen();
+      if (nBodyLen >= sizeof(KxDevCtrlFileDeliverFileData_Base))
       {
-        KxDeliverFileDataItem dataitem;
-        dataitem.nDataLen = pFileData->nDataLen;
-        dataitem.nDataPos = pFileData->nFileDataPos;
-        dataitem.strData.assign(dataitem.nDataLen, '\0');
-        memcpy(&dataitem.strData[0], pFileData->fileData, pFileData->nDataLen);
-        m_vec_recving_FileData.push_back(std::move(dataitem));
-        if (pFileData->nFileDataPos + pFileData->nDataLen == m_recving_FileHeader.nFileLen)
+        auto pMsgBody = msg_->getMsgBodyBuf();
+        KxDevCtrlFileDeliverFileData_Base *pFileData = (KxDevCtrlFileDeliverFileData_Base *)pMsgBody;
+        if (strcmp(pFileData->szFileName, m_recving_FileHeader.szFileName) == 0 && nBodyLen - sizeof(KxDevCtrlFileDeliverFileData_Base) + 1 == pFileData->nDataLen)
         {
-          // check to save
-          std::string strFileContent;
-          for (auto item : m_vec_recving_FileData)
+          KxDeliverFileDataItem dataitem;
+          dataitem.nDataLen = pFileData->nDataLen;
+          dataitem.nDataPos = pFileData->nFileDataPos;
+          dataitem.strData.assign(dataitem.nDataLen, '\0');
+          memcpy(&dataitem.strData[0], pFileData->fileData, pFileData->nDataLen);
+          m_vec_recving_FileData.push_back(std::move(dataitem));
+          if (pFileData->nFileDataPos + pFileData->nDataLen == m_recving_FileHeader.nFileLen)
           {
-            strFileContent.append(item.strData);
+            // check to save
+            std::string strFileContent;
+            for (auto item : m_vec_recving_FileData)
+            {
+              strFileContent.append(item.strData);
+            }
+            // 计算MD5
+            std::string strOutFileName = "./saved_";
+            strOutFileName += m_recving_FileHeader.szFileName;
+            std::ofstream of_file(strOutFileName, std::ios_base::binary | std::ios_base::out);
+            if (of_file)
+            {
+              of_file.write(&strFileContent[0], m_recving_FileHeader.nFileLen);
+              of_file.close();
+            }
+            m_vec_recving_FileData.clear();
           }
-          // 计算MD5
-          std::string strOutFileName = "./saved_";
-          strOutFileName += m_recving_FileHeader.szFileName;
-          std::ofstream of_file(strOutFileName, std::ios_base::binary | std::ios_base::out);
-          if (of_file)
-          {
-            of_file.write(&strFileContent[0], m_recving_FileHeader.nFileLen);
-            of_file.close();
-          }
-          m_vec_recving_FileData.clear();
         }
       }
     }

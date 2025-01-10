@@ -5,6 +5,7 @@
 #include "aeshelper.hpp"
 #include <cstring>
 #include <chrono>
+#include <openssl/evp.h>
 
 #ifdef USING_PQ_DB_
 #include <pqxx/pqxx>
@@ -16,6 +17,24 @@ const char cst_szHost[] = "kingxun.site";
 
 const unsigned char default_aes_key[] = {0x51, 0x5D, 0x3D, 0x22, 0x97, 0x47, 0xC8, 0xFD, 0x9F, 0x30, 0x41, 0xD0, 0x8C, 0x0A, 0xE9, 0x10};
 const unsigned char default_aes_iv[] = {0x13, 0xF1, 0xDA, 0xC8, 0x8B, 0xB6, 0xE2, 0xCD, 0x9B, 0xEA, 0xE0, 0x63, 0x8F, 0x3F, 0x53, 0xAB};
+
+void Kx_MD5(unsigned char *szbuf, int nbufLen, unsigned char *md5_digest,
+			int &ndigestLen)
+{
+	unsigned int md5_digest_len = EVP_MD_size(EVP_md5());
+	if (ndigestLen > md5_digest_len)
+	{
+		// MD5_Init
+		EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
+		EVP_DigestInit_ex(mdctx, EVP_md5(), NULL);
+		// MD5_Update
+		EVP_DigestUpdate(mdctx, szbuf, nbufLen);
+		// MD5_Final
+		EVP_DigestFinal_ex(mdctx, md5_digest, &md5_digest_len);
+		ndigestLen = (int)md5_digest_len;
+		EVP_MD_CTX_free(mdctx);
+	}
+}
 
 KxBusinessLogicMgr::KxBusinessLogicMgr() : _b_stop(false)
 {
@@ -414,9 +433,64 @@ void KxBusinessLogicMgr::DevUsedTrafficMsgCallBack(std::shared_ptr<KxDevSession>
 
 		strsql = std::format("Insert into devusedtraffic (devId,devType,\"usedTraffic\",stTime) values ({},{:d},{},localtimestamp({:d}) );",
 							 msgPacket.getDevId(), pBody->nDevType, pBody->nUsedTraffic, t_c);
-		KX_LOG_FUNC_(strsql);
+
 		// std::cout << "sql is: " << strsql << std::endl;
 		tx.exec(strsql);
+		// tx.commit();
+
+		// 根据流量计算，是否通知2022
+		strsql = std::format("Select filetype,filename,\"fileURL\",\"fileSize\",\"fileMD5\" from devFileUpdateTaskRecView where devid={} and devtype={} and updatedtime is NULL limit 1;",
+							 msgPacket.getDevId(), pBody->nDevType);
+		KX_LOG_FUNC_(strsql);
+		auto rdev = tx.exec(strsql);
+		if (rdev.size() > 0)
+		{
+			auto row_ = rdev[0];
+			auto filetype = row_[0].as<short>();
+			auto filename = row_[1].as<std::string>();
+			auto fileURL = row_[2].as<std::string>();
+			auto fileSize = row_[3].as<int>();
+
+			unsigned char szMsgBuf[256] = {0};
+			KxDevFileUpdateNotify_OrMsg notify_msg;
+			notify_msg.FileType = filetype;
+			std::strncpy(notify_msg.szFileName, filename.c_str(), sizeof(notify_msg.szFileName));
+			notify_msg.svrTime = t_c;
+			notify_msg.nSessionId = session->GetSessionId();
+			notify_msg.nFileLen = fileSize;
+
+			if (!row_[4].is_null())
+			{
+				auto filemd5 = row_[4].as<pqxx::bytes>();
+				std::memcpy(notify_msg.fileMd5, filemd5.data(), sizeof(notify_msg.fileMd5));
+			}
+			// 计算出URL的md5
+			int nMdLen = sizeof(notify_msg.fileURL_KEY);
+			Kx_MD5((unsigned char *)fileURL.c_str(), fileURL.length(), notify_msg.fileURL_KEY, nMdLen);
+			unsigned char msgBody[256] = {0};
+			unsigned int nBufLen = sizeof(msgBody);
+			unsigned char *pOrDevMsg = (unsigned char *)&notify_msg;
+			KxMsgHeader_Base msgDevReqHead_base;
+			// auto msgHeader = msgPacket.getMsgHeader();
+			msgDevReqHead_base.nMsgId = MSG_DEVCTRL_FILETOUPDATE_NOTIFY;
+			msgDevReqHead_base.nSeqNum = msgHeader.nSeqNum;
+			msgDevReqHead_base.nTypeFlag = 0;
+			msgDevReqHead_base.nMsgBodyLen = 0;
+			msgDevReqHead_base.nCryptFlag = 1;
+			bool brt = session->AES_encrypt(pOrDevMsg, sizeof(notify_msg), msgBody, nBufLen);
+			if (brt)
+			{
+				unsigned int *pData = (unsigned int *)(msgBody + nBufLen);
+				*pData = sizeof(notify_msg);
+				nBufLen += sizeof(unsigned int);
+				unsigned short nCrc16 = crc16_ccitt(pOrDevMsg, sizeof(notify_msg));
+				*(unsigned short *)(msgBody + nBufLen) = nCrc16;
+				nBufLen += sizeof(unsigned short);
+				msgDevReqHead_base.nMsgBodyLen = nBufLen;
+				msgDevReqHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevReqHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+				session->SendMsgPacket(msgDevReqHead_base, msgBody, true);
+			}
+		}
 		tx.commit();
 	}
 	catch (std::exception const &e)
@@ -457,6 +531,7 @@ void KxBusinessLogicMgr::AppCtrlLockDevMsgCallBack(std::shared_ptr<KxDevSession>
 			msgDevReqHead_base.nSeqNum = msgHeader.nSeqNum;
 			msgDevReqHead_base.nTypeFlag = 0;
 			msgDevReqHead_base.nMsgBodyLen = 0;
+			msgDevReqHead_base.nCryptFlag = 1;
 			KxDevCtrlLockDev_OrMsg orimsg;
 			orimsg.svrTime = pOriginMsg->svrTime;
 			orimsg.nSessionId = devSession->GetSessionId();
@@ -535,6 +610,7 @@ void KxBusinessLogicMgr::AppCtrlDevGuardMsgCallBack(std::shared_ptr<KxDevSession
 			msgDevReqHead_base.nSeqNum = msgHeader.nSeqNum;
 			msgDevReqHead_base.nTypeFlag = 0;
 			msgDevReqHead_base.nMsgBodyLen = 0;
+			msgDevReqHead_base.nCryptFlag = 1;
 			KxDevCtrlDevGuard_OrMsg orimsg;
 			orimsg.svrTime = pOriginMsg->svrTime;
 			orimsg.nSessionId = devSession->GetSessionId();
@@ -615,6 +691,7 @@ void KxBusinessLogicMgr::AppCtrlOpenLockMsgCallBack(std::shared_ptr<KxDevSession
 			msgDevReqHead_base.nSeqNum = msgHeader.nSeqNum;
 			msgDevReqHead_base.nTypeFlag = 0;
 			msgDevReqHead_base.nMsgBodyLen = 0;
+			msgDevReqHead_base.nCryptFlag = 1;
 			KxDevCtrlOpenLock_OrMsg orimsg;
 			orimsg.nAlowTime = pOriginMsg->nAlowTime;
 			orimsg.nFarthestDist = pOriginMsg->nFarthestDist;
@@ -777,131 +854,130 @@ void KxBusinessLogicMgr::AppCtrlDevFileDeliverCallBack(std::shared_ptr<KxDevSess
 			msgDevReqHead_base.nTypeFlag = 0;
 
 			const unsigned int nBufLen = sizeof(KxDevCtrlFileDeliverHeader_OrMsg_Base) + nHeaderLen - FILE_DATA_BASE_LEN;
-			unsigned char szOriMsg[FILE_DATA_HEADER_ALLOW_LEN +FILE_DATA_BASE_LEN ]={0};
-			unsigned char* pOriMsg = szOriMsg;
+			unsigned char szOriMsg[FILE_DATA_HEADER_ALLOW_LEN + FILE_DATA_BASE_LEN] = {0};
+			unsigned char *pOriMsg = szOriMsg;
 
-			//unsigned char *pOriMsg = new unsigned char[nBufLen + FILE_DATA_BASE_LEN];
+			// unsigned char *pOriMsg = new unsigned char[nBufLen + FILE_DATA_BASE_LEN];
 			bool brt(false);
 			// if (pOriMsg)
 			// {
-				KxDevCtrlFileDeliverHeader_OrMsg_Base &orimsg = *(KxDevCtrlFileDeliverHeader_OrMsg_Base *)pOriMsg;
-				orimsg.svrTime = pFileDeliver->svrTime;
-				auto devSessionId = devSession->GetSessionId();
-				orimsg.nSessionId = devSessionId;
-				orimsg.FileType = pFileDeliver->FileType;
-				std::strncpy(orimsg.szFileName, pFileDeliver->szFileName, sizeof(orimsg.szFileName));
-				orimsg.nFileLen = nFileLen;
-				std::memcpy(orimsg.fileMd5, pFileDeliver->fileMd5, 16 + nHeaderLen);
+			KxDevCtrlFileDeliverHeader_OrMsg_Base &orimsg = *(KxDevCtrlFileDeliverHeader_OrMsg_Base *)pOriMsg;
+			orimsg.svrTime = pFileDeliver->svrTime;
+			auto devSessionId = devSession->GetSessionId();
+			orimsg.nSessionId = devSessionId;
+			orimsg.FileType = pFileDeliver->FileType;
+			std::strncpy(orimsg.szFileName, pFileDeliver->szFileName, sizeof(orimsg.szFileName));
+			orimsg.nFileLen = nFileLen;
+			std::memcpy(orimsg.fileMd5, pFileDeliver->fileMd5, 16 + nHeaderLen);
 
-				// unsigned int nBlocks = (nBufLen + AES_BLOCK_SIZE - 1) / AES_BLOCK_SIZE;
-				// unsigned int nMsgDataLen = nBlocks * AES_BLOCK_SIZE;
+			// unsigned int nBlocks = (nBufLen + AES_BLOCK_SIZE - 1) / AES_BLOCK_SIZE;
+			// unsigned int nMsgDataLen = nBlocks * AES_BLOCK_SIZE;
 
-				unsigned char szMsgBody[FILE_DATA_HEADER_ALLOW_LEN +FILE_DATA_BASE_LEN ]={0};
-				unsigned int nMsgDataLen = sizeof(szMsgBody);
-				unsigned char* pMsgFileBody = szMsgBody;
+			unsigned char szMsgBody[FILE_DATA_HEADER_ALLOW_LEN + FILE_DATA_BASE_LEN] = {0};
+			unsigned int nMsgDataLen = sizeof(szMsgBody);
+			unsigned char *pMsgFileBody = szMsgBody;
 
-				// unsigned char *pMsgFileBody = new unsigned char[nMsgDataLen + sizeof(int) + sizeof(short) + FILE_DATA_BASE_LEN];
-				// if (pMsgFileBody)
-				// {
-					brt = devSession->AES_encrypt(pOriMsg, nBufLen, pMsgFileBody, nMsgDataLen);
-					// std::stringstream ss_log;
-					// ss_log << "AES_encrypt, nBufLen: " << nBufLen << ", nMsgDataLen: " << nMsgDataLen << std::endl;
-					// KX_LOG_FUNC_(ss_log.str());
-					if (brt)
+			// unsigned char *pMsgFileBody = new unsigned char[nMsgDataLen + sizeof(int) + sizeof(short) + FILE_DATA_BASE_LEN];
+			// if (pMsgFileBody)
+			// {
+			brt = devSession->AES_encrypt(pOriMsg, nBufLen, pMsgFileBody, nMsgDataLen);
+			// std::stringstream ss_log;
+			// ss_log << "AES_encrypt, nBufLen: " << nBufLen << ", nMsgDataLen: " << nMsgDataLen << std::endl;
+			// KX_LOG_FUNC_(ss_log.str());
+			if (brt)
+			{
+				// KX_LOG_FUNC_(pOriMsg,nBufLen);
+				unsigned int *pData = (unsigned int *)(pMsgFileBody + nMsgDataLen);
+				*pData = nBufLen;
+				nMsgDataLen += sizeof(int);
+				unsigned short nCrc16 = crc16_ccitt(pOriMsg, nBufLen);
+				*(unsigned short *)(pMsgFileBody + nMsgDataLen) = nCrc16;
+				nMsgDataLen += sizeof(unsigned short);
+				msgDevReqHead_base.nCryptFlag = 1;
+				msgDevReqHead_base.nMsgBodyLen = nMsgDataLen;
+				msgDevReqHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevReqHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+				// auto msgP = std::make_shared<KxMsgPacket_Basic>(msgPacket);
+				// auto LogicNode = std::make_shared<KxBussinessLogicNode>(session, msgP);
+
+				devSession->SendMsgPacket(msgDevReqHead_base, pMsgFileBody, true);
+				std::this_thread::sleep_for(20ms);
+
+				nFileLen -= nHeaderLen;
+				unsigned int nFileDataPos = nHeaderLen;
+				// 再继续发送2021报文
+				unsigned int nFilePacketLen(0);
+				KxMsgHeader_Base msgDevDeliverFile_base;
+				// auto msgHeader = msgPacket.getMsgHeader();
+				msgDevDeliverFile_base.nMsgId = MSG_DEVCTRL_FILEDELIVER_DATA;
+				msgDevDeliverFile_base.nSeqNum = msgHeader.nSeqNum;
+				msgDevDeliverFile_base.nTypeFlag = 0;
+				unsigned char szMsgBody_FileData[cst_FILE_DATA_PACKET_ALLOW_LEN + FILE_DATA_BASE_LEN] = {0};
+				unsigned char *pMsgBody_FileData = szMsgBody_FileData;
+				KxDevCtrlFileDeliverFileData_Base &deliverFileData = *(KxDevCtrlFileDeliverFileData_Base *)pMsgBody_FileData;
+				while (nFileLen > 0)
+				{
+					// 等待继续处理.....
+					if (nFileLen > cst_FILE_DATA_PACKET_ALLOW_LEN)
 					{
-						//KX_LOG_FUNC_(pOriMsg,nBufLen);
-						unsigned int *pData = (unsigned int *)(pMsgFileBody + nMsgDataLen);
-						*pData = nBufLen;
-						nMsgDataLen += sizeof(int);
-						unsigned short nCrc16 = crc16_ccitt(pOriMsg, nBufLen);
-						*(unsigned short *)(pMsgFileBody + nMsgDataLen) = nCrc16;
-						nMsgDataLen += sizeof(unsigned short);
-						msgDevReqHead_base.nMsgBodyLen = nMsgDataLen;
-						msgDevReqHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevReqHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
-						// auto msgP = std::make_shared<KxMsgPacket_Basic>(msgPacket);
-						// auto LogicNode = std::make_shared<KxBussinessLogicNode>(session, msgP);
-
-						devSession->SendMsgPacket(msgDevReqHead_base, pMsgFileBody, true);
-						std::this_thread::sleep_for(20ms);
-
-						nFileLen -= nHeaderLen;
-						unsigned int nFileDataPos = nHeaderLen;
-						// 再继续发送2021报文
-						unsigned int nFilePacketLen(0);
-						KxMsgHeader_Base msgDevDeliverFile_base;
-						// auto msgHeader = msgPacket.getMsgHeader();
-						msgDevDeliverFile_base.nMsgId = MSG_DEVCTRL_FILEDELIVER_DATA;
-						msgDevDeliverFile_base.nSeqNum = msgHeader.nSeqNum;
-						msgDevDeliverFile_base.nTypeFlag = 0;
-						unsigned char szMsgBody_FileData[cst_FILE_DATA_PACKET_ALLOW_LEN + FILE_DATA_BASE_LEN] ={0};
-						unsigned char *pMsgBody_FileData = szMsgBody_FileData;
-						KxDevCtrlFileDeliverFileData_Base &deliverFileData = *(KxDevCtrlFileDeliverFileData_Base *)pMsgBody_FileData;
-						while (nFileLen > 0)
-						{
-							// 等待继续处理.....
-							if (nFileLen > cst_FILE_DATA_PACKET_ALLOW_LEN)
-							{
-								nFilePacketLen = cst_FILE_DATA_PACKET_ALLOW_LEN;
-							}
-							else
-							{
-								nFilePacketLen = nFileLen;
-							}
-							unsigned int nMsgPacketBodyLen = sizeof(KxDevCtrlFileDeliverFileData_Base) + nFilePacketLen - 1;
-							
-							
-							// unsigned char *pMsgBody_FileData = new unsigned char[nMsgPacketBodyLen + FILE_DATA_BASE_LEN];
-							// if (pMsgBody_FileData)
-							//{
-								deliverFileData.nSessionId = devSessionId;
-								deliverFileData.FileType = orimsg.FileType;
-								std::strncpy(deliverFileData.szFileName, orimsg.szFileName, sizeof(deliverFileData.szFileName));
-								deliverFileData.nFileDataPos = nFileDataPos;
-								deliverFileData.nDataLen = (unsigned short)nFilePacketLen;
-								unsigned char *pFileData = pFileDeliver->szFileData + nFileDataPos;
-								std::memcpy(deliverFileData.fileData, pFileData, nFilePacketLen);
-
-								unsigned short *pCRC16 = (unsigned short *)(deliverFileData.fileData + nFilePacketLen);
-								*pCRC16 = crc16_ccitt((unsigned char *)&deliverFileData.nFileDataPos, sizeof(int) + sizeof(short) + nFilePacketLen);
-
-								msgDevDeliverFile_base.nMsgBodyLen = nMsgPacketBodyLen;
-								++ msgDevDeliverFile_base.nSeqNum ;
-								msgDevDeliverFile_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevDeliverFile_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
-
-								devSession->SendMsgPacket(msgDevDeliverFile_base, pMsgBody_FileData, true);
-
-
-								nFileLen -= nFilePacketLen;
-								nFileDataPos += nFilePacketLen;
-
-								std::stringstream ss_log;
-								ss_log << "nMsgPacketBodyLen: " << nMsgPacketBodyLen << ", nFileDataPos: " << nFileDataPos << ", nFilePacketLen: " << nFilePacketLen;
-								KX_LOG_FUNC_(ss_log.str());
-
-								// KX_LOG_FUNC_(pMsgBody_FileData,nMsgPacketBodyLen);
-
-								std::this_thread::sleep_for(80ms);
-
-								// KX_LOG_FUNC_("Call delete[] pMsgBody_FileData");
-								// delete[] pMsgBody_FileData;
-								// pMsgBody_FileData = nullptr;
-								// KX_LOG_FUNC_("After Call delete[] pMsgBody_FileData");
-							// }
-							// else
-							// {
-							// 	break;
-							// }
-						}
+						nFilePacketLen = cst_FILE_DATA_PACKET_ALLOW_LEN;
 					}
-					// KX_LOG_FUNC_("Call delete[] pMsgBody");
-					// delete[] pMsgBody;
-					// pMsgBody = nullptr;
-					// KX_LOG_FUNC_("After Call delete[] pMsgBody");
-				//}
-				// KX_LOG_FUNC_("Call delete[] pOriMsg");
-				// delete[] pOriMsg;
-				// pOriMsg = nullptr;
-				// KX_LOG_FUNC_("After Call delete[] pOriMsg");
+					else
+					{
+						nFilePacketLen = nFileLen;
+					}
+					unsigned int nMsgPacketBodyLen = sizeof(KxDevCtrlFileDeliverFileData_Base) + nFilePacketLen - 1;
+
+					// unsigned char *pMsgBody_FileData = new unsigned char[nMsgPacketBodyLen + FILE_DATA_BASE_LEN];
+					// if (pMsgBody_FileData)
+					//{
+					deliverFileData.nSessionId = devSessionId;
+					deliverFileData.FileType = orimsg.FileType;
+					std::strncpy(deliverFileData.szFileName, orimsg.szFileName, sizeof(deliverFileData.szFileName));
+					deliverFileData.nFileDataPos = nFileDataPos;
+					deliverFileData.nDataLen = (unsigned short)nFilePacketLen;
+					unsigned char *pFileData = pFileDeliver->szFileData + nFileDataPos;
+					std::memcpy(deliverFileData.fileData, pFileData, nFilePacketLen);
+
+					unsigned short *pCRC16 = (unsigned short *)(deliverFileData.fileData + nFilePacketLen);
+					*pCRC16 = crc16_ccitt((unsigned char *)&deliverFileData.nFileDataPos, sizeof(int) + sizeof(short) + nFilePacketLen);
+
+					msgDevDeliverFile_base.nMsgBodyLen = nMsgPacketBodyLen;
+					++msgDevDeliverFile_base.nSeqNum;
+					msgDevDeliverFile_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevDeliverFile_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+
+					devSession->SendMsgPacket(msgDevDeliverFile_base, pMsgBody_FileData, true);
+
+					nFileLen -= nFilePacketLen;
+					nFileDataPos += nFilePacketLen;
+
+					std::stringstream ss_log;
+					ss_log << "nMsgPacketBodyLen: " << nMsgPacketBodyLen << ", nFileDataPos: " << nFileDataPos << ", nFilePacketLen: " << nFilePacketLen;
+					KX_LOG_FUNC_(ss_log.str());
+
+					// KX_LOG_FUNC_(pMsgBody_FileData,nMsgPacketBodyLen);
+
+					std::this_thread::sleep_for(80ms);
+
+					// KX_LOG_FUNC_("Call delete[] pMsgBody_FileData");
+					// delete[] pMsgBody_FileData;
+					// pMsgBody_FileData = nullptr;
+					// KX_LOG_FUNC_("After Call delete[] pMsgBody_FileData");
+					// }
+					// else
+					// {
+					// 	break;
+					// }
+				}
+			}
+			// KX_LOG_FUNC_("Call delete[] pMsgBody");
+			// delete[] pMsgBody;
+			// pMsgBody = nullptr;
+			// KX_LOG_FUNC_("After Call delete[] pMsgBody");
+			//}
+			// KX_LOG_FUNC_("Call delete[] pOriMsg");
+			// delete[] pOriMsg;
+			// pOriMsg = nullptr;
+			// KX_LOG_FUNC_("After Call delete[] pOriMsg");
 			//}
 			if (!brt)
 			{

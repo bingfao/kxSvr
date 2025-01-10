@@ -312,7 +312,7 @@ respcode为0时：
 
 
 ## 设备接收文件完成  
-在每次接收文件2020/2021全部完成后，设备发送该报文到svr
+在每次接收文件2020/2021，或者设备通过1022接收文件，全部完成后，设备发送该报文到svr
 - MsgId  1020
 - CryptFlag 0
 ### 包体部分 
@@ -323,6 +323,9 @@ respcode为0时：
     - hour         1Byte
     - min          1Byte
     - second       1Byte   timestamp
+- recvFlag        1Byte
+    - 0       2020/2021接收文件
+    - 1       1022接收文件
 - FileType        1Byte 
     - 1                 固件版本等系统文件
     - 2                 媒体文件
