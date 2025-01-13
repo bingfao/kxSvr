@@ -22,7 +22,7 @@ void Kx_MD5(unsigned char *szbuf, int nbufLen, unsigned char *md5_digest,
 			int &ndigestLen)
 {
 	unsigned int md5_digest_len = EVP_MD_size(EVP_md5());
-	if (ndigestLen > md5_digest_len)
+	if (ndigestLen >= md5_digest_len)
 	{
 		// MD5_Init
 		EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
@@ -141,6 +141,8 @@ void KxBusinessLogicMgr::RegisterCallBacks()
 														 std::placeholders::_1, std::placeholders::_2);
 	m_map_FunCallbacks[MSG_DEV_USED_TRAFFIC] = std::bind(&KxBusinessLogicMgr::DevUsedTrafficMsgCallBack, this,
 														 std::placeholders::_1, std::placeholders::_2);
+	m_map_FunCallbacks[MSG_DEV_GET_FILE_DATA] = std::bind(&KxBusinessLogicMgr::DevGetFileDataMsgCallBack, this,
+														  std::placeholders::_1, std::placeholders::_2);
 }
 
 void KxBusinessLogicMgr::WebSvrHeartBeatMsgCallBack(std::shared_ptr<KxDevSession> session, const KxMsgPacket_Basic &msgPacket)
@@ -489,6 +491,106 @@ void KxBusinessLogicMgr::DevUsedTrafficMsgCallBack(std::shared_ptr<KxDevSession>
 				msgDevReqHead_base.nMsgBodyLen = nBufLen;
 				msgDevReqHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevReqHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 				session->SendMsgPacket(msgDevReqHead_base, msgBody, true);
+			}
+		}
+		tx.commit();
+	}
+	catch (std::exception const &e)
+	{
+		// std::cerr << "ERROR: " << e.what() << std::endl;
+		std::string strLog = "ERROR: ";
+		strLog += e.what();
+		KX_LOG_FUNC_(strLog);
+	}
+#endif
+}
+
+void KxBusinessLogicMgr::DevGetFileDataMsgCallBack(std::shared_ptr<KxDevSession> session, const KxMsgPacket_Basic &msgPacket)
+{
+	// to be modify
+
+	KxMsgHeader_Base msgRespHead_base;
+	auto msgHeader = msgPacket.getMsgHeader();
+	msgRespHead_base.nMsgId = msgHeader.nMsgId;
+	msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
+	msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
+	msgRespHead_base.nMsgBodyLen = 0;
+	msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+
+	// const std::chrono::time_point<std::chrono::system_clock> tp_now =
+	// 	std::chrono::system_clock::now();
+	// const std::time_t t_c = std::chrono::system_clock::to_time_t(tp_now);
+	const std::time_t t_c = std::time(nullptr);
+	session->setLastTime(t_c);
+#ifdef USING_PQ_DB_
+	try
+	{
+		// pqxx::connection c{"host=localhost port=5432 dbname=kingxun user=postgres password=bingfao"};
+
+#ifdef WIN32
+		pqxx::connection c{"postgresql://postgres:gb6205966@localhost/postgres"};
+#else
+		pqxx::connection c{"postgresql://postgres:bingfao@localhost/kingxun"};
+#endif
+		pqxx::work tx{c};
+		KxDevGet_FileData_Msg *pBody = (KxDevGet_FileData_Msg *)msgPacket.getMsgBodyBuf();
+
+		std::string strsql;
+
+		char szFileName[50] = {0};
+		std::strncpy(szFileName, pBody->szFileName, sizeof(pBody->szFileName));
+		// 根据流量计算，是否通知2022
+		strsql = std::format("Select \"fileURL\",\"fileSize\",\"fileMD5\" \
+		 from devFileUpdateTaskRecView where devid={} and devtype={} and filetype={} and filename= '{}' and updatedtime is NULL limit 1;",
+							 msgPacket.getDevId(), pBody->nDevType, pBody->FileType, szFileName);
+		KX_LOG_FUNC_(strsql);
+		auto rdev = tx.exec(strsql);
+		if (rdev.size() > 0)
+		{
+			auto row_ = rdev[0];
+			auto fileURL = row_[0].as<std::string>();
+			auto fileSize = row_[1].as<int>();
+			auto fileMD5 = row_[2].as<pqxx::bytes>();
+			unsigned char url_md5[16] = {0};
+			int nMd5Len = sizeof(url_md5);
+			Kx_MD5((unsigned char *)fileURL.c_str(), fileURL.length(), url_md5, nMd5Len);
+			if (0 == std::memcmp(url_md5, pBody->fileURL_KEY, sizeof(url_md5)))
+			{
+				if (pBody->nFileDataPos + pBody->nDataLen <= fileSize)
+				{
+					unsigned int nFileSize(0);
+					std::string strFileData;
+					if (std::ifstream is{fileURL, std::ios::binary | std::ios::ate})
+					{
+						auto size = is.tellg();
+						nFileSize = size;
+						if (nFileSize == fileSize)
+						{
+							strFileData.assign(size, '\0'); // construct string to stream size
+							is.seekg(0);
+							if (is.read(&strFileData[0], size))
+							{
+								// 计算md5
+								unsigned char cal_fileMd5[16] = {0};
+								int nMdLen = sizeof(cal_fileMd5);
+								Kx_MD5((unsigned char *)strFileData.c_str(), nFileSize,
+									   cal_fileMd5, nMdLen);
+								//KX_LOG_FUNC_(fileMd5, nMdLen);
+								if (0 == std::memcmp(cal_fileMd5, fileMD5.data(), sizeof(cal_fileMd5)))
+								{
+									msgRespHead_base.nMsgBodyLen = pBody->nDataLen;
+									unsigned char* pFileData =(unsigned char*)(&strFileData[pBody->nFileDataPos]);
+									session->SendRespPacket(msgRespHead_base,cst_nResp_Code_OK,pFileData, true);
+								}
+							}
+						}
+						is.close();
+					}
+				}
+				else
+				{
+					session->SendRespPacket(msgRespHead_base, cst_nResp_Code_PARA_ERR, nullptr, false);
+				}
 			}
 		}
 		tx.commit();

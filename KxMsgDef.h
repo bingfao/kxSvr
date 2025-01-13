@@ -14,11 +14,13 @@ const unsigned int cst_nResp_Code_RSETSVR = 2;
 const unsigned int cst_nResp_Code_DEV_OFFLINE = 3;
 const unsigned int cst_nResp_Code_DEVID_ERR = 4;
 const unsigned int cst_nResp_Code_SEND_DEV_ERR = 5;
+const unsigned int cst_nResp_Code_PARA_ERR = 6;
 
 const int MSG_DEV_REGISTER = 1001;
 const int MSG_DEV_STATUS = 1002;
 const int MSG_DEV_USED_TRAFFIC = 1004;
 const int MSG_DEV_FILE_RECV_OK = 1020;
+const int MSG_DEV_GET_FILE_DATA = 1022;
 
 const int MSG_DEVCTRL_OPENLOCK = 2001;
 const int MSG_DEVCTRL_LOCKDEV = 2002;
@@ -271,6 +273,16 @@ struct KxDevFileRecvOK_Msg
 	char szFileName[32];
 	unsigned int nFileLen;
 	unsigned char fileMd5[16];
+};
+
+struct KxDevGet_FileData_Msg
+{
+	unsigned char nDevType;
+	unsigned char FileType;
+	char szFileName[32];
+	unsigned char fileURL_KEY[16];
+	unsigned int nFileDataPos;
+	unsigned short nDataLen;
 };
 
 struct KxDevFileUpdateNotify_OrMsg

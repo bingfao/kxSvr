@@ -77,4 +77,4 @@ int main()
     return 0;
 }
 
-// cl /EHsc /std:c++20 .\pgdbtest.cpp .\pqxx.lib -ID:\\workspace\\libpqxx\\include -ID:\\workspace\\libpqxx\\build\\include  libpq.lib
+// cl /EHsc /std:c++20 -D WIN32 -D_WIN32_WINNT=0x0601 ./pgdbtest.cpp .\pqxx.lib  -ID:\\workspace\\libpqxx\\include -ID:\\workspace\\libpqxx\\build\\include  libpq.lib

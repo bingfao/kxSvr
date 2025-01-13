@@ -1,12 +1,16 @@
 
 // #include <cstdlib>
 
-#include <thread>
 #include "KxClient.hpp"
+#include "kxLog_iostream.h"
 #include <fstream>
+#include <chrono>
+#include <thread>
 #include <openssl/evp.h>
 
 using asio::ip::tcp;
+
+using namespace std::chrono_literals;
 
 const unsigned char default_aes_key[] = {0x51, 0x5D, 0x3D, 0x22, 0x97, 0x47, 0xC8, 0xFD, 0x9F, 0x30, 0x41, 0xD0, 0x8C, 0x0A, 0xE9, 0x10};
 const unsigned char default_aes_iv[] = {0x13, 0xF1, 0xDA, 0xC8, 0x8B, 0xB6, 0xE2, 0xCD, 0x9B, 0xEA, 0xE0, 0x63, 0x8F, 0x3F, 0x53, 0xAB};
@@ -21,7 +25,7 @@ void Kx_MD5(unsigned char *szbuf, int nbufLen, unsigned char *md5_digest,
             int &ndigestLen)
 {
   unsigned int md5_digest_len = EVP_MD_size(EVP_md5());
-  if (ndigestLen > md5_digest_len)
+  if (ndigestLen >= md5_digest_len)
   {
     // MD5_Init
     EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
@@ -550,6 +554,64 @@ void KxClient::onHanleMsg(std::shared_ptr<KxMsgPacket_Basic> msg_)
     auto msg = std::make_shared<KxMsgPacket_Basic>(msgRespHead_base, nHeaderExtra, nullptr, false);
     msg->calculate_crc();
     write(msg);
+  }
+  break;
+  case 2022:
+  {
+    KxMsgHeader_Base msgRespHead_base;
+    msgRespHead_base.nMsgId = msg_h.nMsgId;
+    msgRespHead_base.nSeqNum = msg_h.nSeqNum;
+    msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
+    msgRespHead_base.nMsgBodyLen = 0;
+    unsigned int nHeaderExtra[2] = {0};
+    nHeaderExtra[0] = cst_nResp_Code_OK;
+    auto msg = std::make_shared<KxMsgPacket_Basic>(msgRespHead_base, nHeaderExtra, nullptr, false);
+    msg->calculate_crc();
+    write(msg);
+
+    auto nBodyLen = msg_->getBodyLen();
+    if (nBodyLen)
+    {
+      unsigned char *pMsgBody = msg_->getMsgBodyBuf();
+      // 是AES后的数据，需要解密
+      unsigned char szOut[256] = {0};
+      unsigned int nOutDataLen = sizeof(szOut);
+      int nMsgDataLen = nBodyLen - 6;
+      if (AES_decryptPacket(pMsgBody, nMsgDataLen, szOut, nOutDataLen))
+      {
+        unsigned int *pnDataLen = (unsigned int *)(pMsgBody + nMsgDataLen);
+        unsigned short *pMsgCrc = (unsigned short *)(pnDataLen + 1);
+        unsigned short nMsgCRC = crc16_ccitt(szOut, nOutDataLen);
+        if (nOutDataLen == *pnDataLen && nMsgCRC == *pMsgCrc)
+        {
+          if (nOutDataLen == sizeof(KxDevFileUpdateNotify_OrMsg))
+          {
+            KxDevFileUpdateNotify_OrMsg &notify_msg = *(KxDevFileUpdateNotify_OrMsg *)szOut;
+
+            KxDevGet_FileData_Msg msg_body;
+            msg_body.FileType = notify_msg.FileType;
+            msg_body.nDevType = 1;
+            msg_body.nFileDataPos = 0;
+            msg_body.nDataLen = std::min(notify_msg.nFileLen, (unsigned int)0xFFFF);
+            std::strncpy(msg_body.szFileName, notify_msg.szFileName, sizeof(msg_body.szFileName));
+            std::memcpy(msg_body.fileURL_KEY, notify_msg.fileURL_KEY, sizeof(notify_msg.fileURL_KEY));
+
+            KxMsgHeader_Base msgHead_base;
+            msgHead_base.nMsgId = MSG_DEV_GET_FILE_DATA;
+            msgHead_base.nSeqNum = msg_h.nSeqNum;
+            msgHead_base.nMsgBodyLen = sizeof(msg_body);
+            unsigned int nHeaderExtra[2] = {0};
+            nHeaderExtra[0] = getDevId();
+            nHeaderExtra[1] = getSessionId();
+            unsigned char *pFileData = (unsigned char *)&msg_body;
+            auto msg = std::make_shared<KxMsgPacket_Basic>(msgHead_base, nHeaderExtra, pFileData, false);
+            msg->calculate_crc();
+            std::this_thread::sleep_for(20ms);
+            write(msg);
+          }
+        }
+      }
+    }
   }
   break;
   default:

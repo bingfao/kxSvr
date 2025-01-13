@@ -349,6 +349,7 @@ respcode为0时：
 - CryptFlag 0
 
 ### 包体部分 
+- DevType         1Byte 设备类型 
 - FileType        1Byte 
     - 1                 固件版本等系统文件
     - 2                 媒体文件
@@ -360,7 +361,7 @@ respcode为0时：
     - "weather.mp3"     对应天气提示
 - FileURL_KEY     16Byte  
 - FileDataPos     4Byte   请求文件数据的起始位置
-- nDataLen        2Byte   数据的长度  每包不超过20k   
+- nDataLen        2Byte   数据的长度  每包支持最大64k,由设备端指定  
 
 
 ### 应答包
