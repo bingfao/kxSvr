@@ -323,6 +323,7 @@ respcode为0时：
     - hour         1Byte
     - min          1Byte
     - second       1Byte   timestamp
+- devtype         1Byte
 - recvFlag        1Byte
     - 0       2020/2021接收文件
     - 1       1022接收文件
@@ -336,7 +337,7 @@ respcode为0时：
     - "dashboard"       对应仪表盘
     - "weather.mp3"     对应天气提示
 - FileLen         4Byte  
-
+- FileMD5         16Byte
 
 ### 应答包
 - RespCode

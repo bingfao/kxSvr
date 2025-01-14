@@ -143,6 +143,8 @@ void KxBusinessLogicMgr::RegisterCallBacks()
 														 std::placeholders::_1, std::placeholders::_2);
 	m_map_FunCallbacks[MSG_DEV_GET_FILE_DATA] = std::bind(&KxBusinessLogicMgr::DevGetFileDataMsgCallBack, this,
 														  std::placeholders::_1, std::placeholders::_2);
+	m_map_FunCallbacks[MSG_DEV_FILE_RECV_OK] = std::bind(&KxBusinessLogicMgr::DevGetFileOKMsgCallBack, this,
+														  std::placeholders::_1, std::placeholders::_2);
 }
 
 void KxBusinessLogicMgr::WebSvrHeartBeatMsgCallBack(std::shared_ptr<KxDevSession> session, const KxMsgPacket_Basic &msgPacket)
@@ -615,6 +617,80 @@ void KxBusinessLogicMgr::DevGetFileDataMsgCallBack(std::shared_ptr<KxDevSession>
 		KX_LOG_FUNC_(strLog);
 	}
 #endif
+}
+
+void KxBusinessLogicMgr::DevGetFileOKMsgCallBack(std::shared_ptr<KxDevSession> session, const KxMsgPacket_Basic &msgPacket)
+{
+	const std::time_t t_c = std::time(nullptr);
+	session->setLastTime(t_c);
+	auto msgHeader = msgPacket.getMsgHeader();
+	auto pMsgBody = msgPacket.getMsgBodyBuf();
+	if (msgHeader.nMsgBodyLen == sizeof(KxDevFileRecvOK_Msg))
+	{
+		KxDevFileRecvOK_Msg &recv_msg = *(KxDevFileRecvOK_Msg *)pMsgBody;
+		if (recv_msg.recvFlag == 1)
+		{
+// 更新devFileUpdateRec
+#ifdef USING_PQ_DB_
+			try
+			{
+				// pqxx::connection c{"host=localhost port=5432 dbname=kingxun user=postgres password=bingfao"};
+
+#ifdef WIN32
+				pqxx::connection c{"postgresql://postgres:gb6205966@localhost/postgres"};
+#else
+				pqxx::connection c{"postgresql://postgres:bingfao@localhost/kingxun"};
+#endif
+				pqxx::work tx{c};
+
+				std::string strsql;
+
+				char szFileName[50] = {0};
+				std::strncpy(szFileName, recv_msg.szFileName, sizeof(recv_msg.szFileName));
+				std::string strFileMd5;
+				std::stringstream ss;
+				int nMdLen = sizeof(recv_msg.fileMd5);
+				for (auto i = 0; i < nMdLen; ++i)
+				{
+					ss << std::setw(2) << std::setfill('0') << std::hex << (short)recv_msg.fileMd5[i];
+				}
+				strFileMd5 = "\\x" + ss.str();
+
+				strsql = std::format("Select recid from devFileUpdateTaskRecView \
+				where devid={} and devtype={} and filetype={} and filename= '{}' and \"fileMD5\"= '{}' and updatedtime is NULL limit 1;",
+									 msgPacket.getDevId(), recv_msg.devtype, recv_msg.FileType, szFileName, strFileMd5);
+				KX_LOG_FUNC_(strsql);
+				auto rdev = tx.exec(strsql);
+				if (rdev.size() > 0)
+				{
+					auto row_ = rdev[0];
+					auto recid = row_[0].as<int>();
+					std::string strDevTime = std::format("{}-{}-{} {}:{}:{}",
+						recv_msg.tmYear, recv_msg.tmMonth, recv_msg.tmDay, recv_msg.tmHour, recv_msg.tmMin, recv_msg.tmSec);
+					strsql = std::format("update \"devFileUpdateRec\" set updatedtime='{}' where recid= {}",
+										 strDevTime, recid);
+					KX_LOG_FUNC_(strsql);
+					tx.exec(strsql);
+				}
+				tx.commit();
+			}
+			catch (std::exception const &e)
+			{
+				// std::cerr << "ERROR: " << e.what() << std::endl;
+				std::string strLog = "ERROR: ";
+				strLog += e.what();
+				KX_LOG_FUNC_(strLog);
+			}
+#endif
+		}
+		KxMsgHeader_Base msgRespHead_base;
+		msgRespHead_base.nMsgId = msgHeader.nMsgId;
+		msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
+		msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
+		msgRespHead_base.nMsgBodyLen = 0;
+		msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+		session->SendRespPacket(msgRespHead_base, cst_nResp_Code_OK, nullptr, false);
+	}
 }
 
 void KxBusinessLogicMgr::AppCtrlLockDevMsgCallBack(std::shared_ptr<KxDevSession> session, const KxMsgPacket_Basic &msgPacket)

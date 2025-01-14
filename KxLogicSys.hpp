@@ -33,6 +33,7 @@ private:
     void DevStatusMsgCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic& msgPacket);
 	void DevUsedTrafficMsgCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic& msgPacket);
 	void DevGetFileDataMsgCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic& msgPacket);
+	void DevGetFileOKMsgCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic& msgPacket);
 
 	void AppCtrlOpenLockMsgCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic& msgPacket);
 	void AppCtrlLockDevMsgCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic& msgPacket);

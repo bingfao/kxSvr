@@ -346,6 +346,7 @@ private:
   std::list<std::shared_ptr<KxMsgPacket_Basic>> sended_msgs_;
   std::mutex m_mutex_tosend;
   std::mutex m_mutex_sended;
+  KxDevFileUpdateNotify_OrMsg m_fileNotify_msg;
 };
 
 #endif

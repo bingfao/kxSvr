@@ -269,6 +269,9 @@ struct KxDevFileRecvOK_Msg
 	unsigned char tmHour;
 	unsigned char tmMin;
 	unsigned char tmSec;
+	
+	unsigned char devtype;
+	unsigned char recvFlag;
 	unsigned char FileType;
 	char szFileName[32];
 	unsigned int nFileLen;

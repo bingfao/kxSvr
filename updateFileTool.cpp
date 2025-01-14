@@ -150,4 +150,6 @@ int main(int argc, char *argv[])
     return 0;
 }
 
+// g++ ./updateFileTool.cpp -o ./updateFileTool -std=c++20 -DUSING_PQ_DB_ -lpqxx -lpq -lcrypto
+
 // cl /EHsc /std:c++20 ./updateFileTool.cpp  -D WIN32 -D_WIN32_WINNT=0x0601  ./pqxx.lib -ID:\\workspace\\libpqxx\\include -ID:\\workspace\\libpqxx\\build\\include  libpq.lib -I "C:\\Program Files\\OpenSSL\\include"  D:\openssl\libcrypto.lib
