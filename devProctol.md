@@ -499,7 +499,7 @@ respcode为0时：
     - devSessionId    4Byte
     - FileType        1Byte 
         - 1                 固件版本等系统文件
-        - 2                 媒体文件
+        - 2                 媒体文件, **对2020下发的媒体文件，设备端接收成功完毕后即进行播放**
     - FileName        32Byte  char utf-8  || 需要对文件名的规则进行约定，以实现固件OTA升级以及媒体文件等更新下发
         - "bms"            对应BMS固件
         - "motorcontrol"    对应电机控制器
