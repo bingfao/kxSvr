@@ -285,6 +285,13 @@ struct KxDevGet_FileData_Msg
 	unsigned short nDataLen;
 };
 
+struct KxDev_FileData_Msg_Base
+{
+	unsigned int nFileDataPos;
+	unsigned short nDataLen;
+	unsigned char fileData[3];
+};
+
 struct KxDevFileUpdateNotify_OrMsg
 {
 	std::time_t svrTime;

@@ -407,6 +407,36 @@ void KxClient::onHanleMsg(std::shared_ptr<KxMsgPacket_Basic> msg_)
     }
   }
   break;
+  case 1022:
+  {
+    if (msg_->getRespCode() == cst_nResp_Code_OK)
+    {
+      auto nBodyLen = msg_->getBodyLen();
+      if (nBodyLen > sizeof(KxDev_FileData_Msg_Base))
+      {
+        auto msgData = msg_->getMsgBodyBuf();
+        KxDev_FileData_Msg_Base &fileData = *(KxDev_FileData_Msg_Base *)(msgData);
+        // 计算crc
+        int ncrc_len = nBodyLen - 2;
+        unsigned short *pDataCrc = (unsigned short *)(msgData + ncrc_len);
+        if( *pDataCrc == crc16_ccitt(msgData, ncrc_len))
+        {
+            std::string strOutFileName = "./saved_1022_";
+            strOutFileName += std::to_string(msg_h.nSeqNum);
+            strOutFileName += "_";
+            strOutFileName += std::to_string(fileData.nFileDataPos);
+            std::ofstream of_file(strOutFileName, std::ios_base::binary | std::ios_base::out);
+            if (of_file)
+            {
+
+              of_file.write((const char*)fileData.fileData, fileData.nDataLen);
+              of_file.close();
+            }
+        }
+      }
+    }
+  }
+  break;
   case 9001:
   {
     if (msg_->getRespCode() == cst_nResp_Code_OK)

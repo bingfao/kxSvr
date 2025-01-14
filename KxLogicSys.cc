@@ -575,12 +575,24 @@ void KxBusinessLogicMgr::DevGetFileDataMsgCallBack(std::shared_ptr<KxDevSession>
 								int nMdLen = sizeof(cal_fileMd5);
 								Kx_MD5((unsigned char *)strFileData.c_str(), nFileSize,
 									   cal_fileMd5, nMdLen);
-								//KX_LOG_FUNC_(fileMd5, nMdLen);
+								// KX_LOG_FUNC_(fileMd5, nMdLen);
 								if (0 == std::memcmp(cal_fileMd5, fileMD5.data(), sizeof(cal_fileMd5)))
 								{
-									msgRespHead_base.nMsgBodyLen = pBody->nDataLen;
-									unsigned char* pFileData =(unsigned char*)(&strFileData[pBody->nFileDataPos]);
-									session->SendRespPacket(msgRespHead_base,cst_nResp_Code_OK,pFileData, true);
+									msgRespHead_base.nMsgBodyLen = pBody->nDataLen + sizeof(KxDev_FileData_Msg_Base) - 1;
+									unsigned char *pFileData = new unsigned char[msgRespHead_base.nMsgBodyLen];
+									if (pFileData)
+									{
+										KxDev_FileData_Msg_Base &msg_Data = *(KxDev_FileData_Msg_Base *)(pFileData);
+										msg_Data.nFileDataPos = pBody->nFileDataPos;
+										msg_Data.nDataLen = pBody->nDataLen;
+										std::memcpy(msg_Data.fileData, &strFileData[pBody->nFileDataPos], pBody->nDataLen);
+										int ncrc_len = msgRespHead_base.nMsgBodyLen - sizeof(unsigned short);
+										unsigned short *pMsg_Crc16 = (unsigned short *)(pFileData + ncrc_len);
+										*pMsg_Crc16 = crc16_ccitt(pFileData, ncrc_len);
+										session->SendRespPacket(msgRespHead_base, cst_nResp_Code_OK, pFileData, true);
+										delete[] pFileData;
+										pFileData = nullptr;
+									}
 								}
 							}
 						}
