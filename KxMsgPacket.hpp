@@ -20,7 +20,9 @@ public:
 	KxMsgPacket_Basic(const KxMsgHeader_Base &msgH_base, unsigned int *pHeadExtData, unsigned char *pBody, bool bNeedDelBuf)
 	{
 		KxMsgPacket_Basic();
-		std::memcpy(&m_msgHeader, &msgH_base, sizeof(KxMsgHeader_Base));
+		//std::memcpy(&m_msgHeader, &msgH_base, sizeof(KxMsgHeader_Base));
+		std::memcpy(&m_msgHeader, &msgH_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short) );
+		m_msgHeader.nCrc16 = crc16_ccitt((unsigned char *)&m_msgHeader, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 		if (pHeadExtData)
 		{
 			m_nRespCode_u_DevId = pHeadExtData[0];

@@ -163,7 +163,7 @@ void KxBusinessLogicMgr::WebSvrHeartBeatMsgCallBack(std::shared_ptr<KxDevSession
 		msgRespHead_base.nMsgBodyLen = sizeof(respbody);
 		respbody.ntotalDevCount = session->getDevCount();
 		respbody.svrStartTime = session->getSvrStartTime();
-		msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+		// msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 		session->SendRespPacket(msgRespHead_base, cst_nResp_Code_OK, (unsigned char *)&respbody, true);
 		session->setLastTime(t_c);
 	}
@@ -213,7 +213,7 @@ void KxBusinessLogicMgr::WebSvrRegMsgCallBack(std::shared_ptr<KxDevSession> sess
 				*(unsigned short *)(msgBody + nBufLen) = nCrc16;
 				nBufLen += sizeof(unsigned short);
 				msgRespHead_base.nMsgBodyLen = nBufLen;
-				msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+				// msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 				session->SendRespPacket(msgRespHead_base, cst_nResp_Code_OK, msgBody, true);
 				session->setAES_Iv(originRespData.szIV);
 				ssout << "Set New IV Data: " << std::hex;
@@ -261,7 +261,7 @@ void KxBusinessLogicMgr::DevRegMsgCallBack(std::shared_ptr<KxDevSession> session
 #endif
 
 		msgRespHead_base.nMsgBodyLen = szPacket[0] + 3;
-		msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+		// msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 		session->SendRespPacket(msgRespHead_base, cst_nResp_Code_RSETSVR, szPacket, true);
 	}
 	else
@@ -271,7 +271,7 @@ void KxBusinessLogicMgr::DevRegMsgCallBack(std::shared_ptr<KxDevSession> session
 		session->setLastTime(t_c);
 		unsigned char szPacketBody[20] = {0};
 		msgRespHead_base.nMsgBodyLen = sizeof(szPacketBody);
-		msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+		// msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 		unsigned int nBodySessionId = session->GetSessionId();
 		auto nDevId = msgPacket.getDevId();
 		session->updateDevSessionId(nDevId, nBodySessionId);
@@ -292,7 +292,7 @@ void KxBusinessLogicMgr::DevStatusMsgCallBack(std::shared_ptr<KxDevSession> sess
 	msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
 	msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
 	msgRespHead_base.nMsgBodyLen = 0;
-	msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+	//msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 	session->SendRespPacket(msgRespHead_base, cst_nResp_Code_OK, nullptr, false);
 	const std::chrono::time_point<std::chrono::system_clock> tp_now =
 		std::chrono::system_clock::now();
@@ -413,7 +413,7 @@ void KxBusinessLogicMgr::DevUsedTrafficMsgCallBack(std::shared_ptr<KxDevSession>
 	msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
 	msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
 	msgRespHead_base.nMsgBodyLen = 0;
-	msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+	// msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 	session->SendRespPacket(msgRespHead_base, cst_nResp_Code_OK, nullptr, false);
 	// const std::chrono::time_point<std::chrono::system_clock> tp_now =
 	// 	std::chrono::system_clock::now();
@@ -491,7 +491,7 @@ void KxBusinessLogicMgr::DevUsedTrafficMsgCallBack(std::shared_ptr<KxDevSession>
 				*(unsigned short *)(msgBody + nBufLen) = nCrc16;
 				nBufLen += sizeof(unsigned short);
 				msgDevReqHead_base.nMsgBodyLen = nBufLen;
-				msgDevReqHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevReqHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+				// msgDevReqHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevReqHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 				session->SendMsgPacket(msgDevReqHead_base, msgBody, true);
 			}
 		}
@@ -517,7 +517,8 @@ void KxBusinessLogicMgr::DevGetFileDataMsgCallBack(std::shared_ptr<KxDevSession>
 	msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
 	msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
 	msgRespHead_base.nMsgBodyLen = 0;
-	msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+
+	// msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 
 	// const std::chrono::time_point<std::chrono::system_clock> tp_now =
 	// 	std::chrono::system_clock::now();
@@ -591,7 +592,10 @@ void KxBusinessLogicMgr::DevGetFileDataMsgCallBack(std::shared_ptr<KxDevSession>
 										int ncrc_len = msgRespHead_base.nMsgBodyLen - sizeof(unsigned short);
 										unsigned short *pMsg_Crc16 = (unsigned short *)(pFileData + ncrc_len);
 										*pMsg_Crc16 = crc16_ccitt(pFileData, ncrc_len);
+
+										// msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 										session->SendRespPacket(msgRespHead_base, cst_nResp_Code_OK, pFileData, true);
+										
 										delete[] pFileData;
 										pFileData = nullptr;
 									}
@@ -688,7 +692,7 @@ void KxBusinessLogicMgr::DevGetFileOKMsgCallBack(std::shared_ptr<KxDevSession> s
 		msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
 		msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
 		msgRespHead_base.nMsgBodyLen = 0;
-		msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+		// msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 		session->SendRespPacket(msgRespHead_base, cst_nResp_Code_OK, nullptr, false);
 	}
 }
@@ -739,7 +743,7 @@ void KxBusinessLogicMgr::AppCtrlLockDevMsgCallBack(std::shared_ptr<KxDevSession>
 				*(unsigned short *)(msgBody + nBufLen) = nCrc16;
 				nBufLen += sizeof(unsigned short);
 				msgDevReqHead_base.nMsgBodyLen = nBufLen;
-				msgDevReqHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevReqHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+				// msgDevReqHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevReqHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 				auto msgP = std::make_shared<KxMsgPacket_Basic>(msgPacket);
 				devSession->SendMsgPacket(msgDevReqHead_base, msgBody, true, std::make_shared<KxBussinessLogicNode>(session, msgP));
 			}
@@ -752,7 +756,7 @@ void KxBusinessLogicMgr::AppCtrlLockDevMsgCallBack(std::shared_ptr<KxDevSession>
 				msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
 				msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
 				msgRespHead_base.nMsgBodyLen = 0;
-				msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+				// msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 				session->SendRespPacket(msgRespHead_base, cst_nResp_Code_SEND_DEV_ERR, nullptr, false);
 			}
 		}
@@ -764,7 +768,7 @@ void KxBusinessLogicMgr::AppCtrlLockDevMsgCallBack(std::shared_ptr<KxDevSession>
 			msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
 			msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
 			msgRespHead_base.nMsgBodyLen = 0;
-			msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+			// msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 			session->SendRespPacket(msgRespHead_base, cst_nResp_Code_DEV_OFFLINE, nullptr, false);
 		}
 		delete[] originMsgBody;
@@ -820,7 +824,7 @@ void KxBusinessLogicMgr::AppCtrlDevGuardMsgCallBack(std::shared_ptr<KxDevSession
 				*(unsigned short *)(msgBody + nBufLen) = nCrc16;
 				nBufLen += sizeof(unsigned short);
 				msgDevReqHead_base.nMsgBodyLen = nBufLen;
-				msgDevReqHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevReqHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+				// msgDevReqHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevReqHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 				auto msgP = std::make_shared<KxMsgPacket_Basic>(msgPacket);
 				devSession->SendMsgPacket(msgDevReqHead_base, msgBody, true, std::make_shared<KxBussinessLogicNode>(session, msgP));
 			}
@@ -833,7 +837,7 @@ void KxBusinessLogicMgr::AppCtrlDevGuardMsgCallBack(std::shared_ptr<KxDevSession
 				msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
 				msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
 				msgRespHead_base.nMsgBodyLen = 0;
-				msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+				// msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 				session->SendRespPacket(msgRespHead_base, cst_nResp_Code_SEND_DEV_ERR, nullptr, false);
 			}
 		}
@@ -845,7 +849,7 @@ void KxBusinessLogicMgr::AppCtrlDevGuardMsgCallBack(std::shared_ptr<KxDevSession
 			msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
 			msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
 			msgRespHead_base.nMsgBodyLen = 0;
-			msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+			// msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 			session->SendRespPacket(msgRespHead_base, cst_nResp_Code_DEV_OFFLINE, nullptr, false);
 		}
 		delete[] originMsgBody;
@@ -901,7 +905,7 @@ void KxBusinessLogicMgr::AppCtrlOpenLockMsgCallBack(std::shared_ptr<KxDevSession
 				*(unsigned short *)(msgBody + nBufLen) = nCrc16;
 				nBufLen += sizeof(unsigned short);
 				msgDevReqHead_base.nMsgBodyLen = nBufLen;
-				msgDevReqHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevReqHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+				// msgDevReqHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevReqHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 				auto msgP = std::make_shared<KxMsgPacket_Basic>(msgPacket);
 				devSession->SendMsgPacket(msgDevReqHead_base, msgBody, true, std::make_shared<KxBussinessLogicNode>(session, msgP));
 			}
@@ -914,7 +918,7 @@ void KxBusinessLogicMgr::AppCtrlOpenLockMsgCallBack(std::shared_ptr<KxDevSession
 				msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
 				msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
 				msgRespHead_base.nMsgBodyLen = 0;
-				msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+				// msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 				session->SendRespPacket(msgRespHead_base, cst_nResp_Code_SEND_DEV_ERR, nullptr, false);
 			}
 		}
@@ -926,7 +930,7 @@ void KxBusinessLogicMgr::AppCtrlOpenLockMsgCallBack(std::shared_ptr<KxDevSession
 			msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
 			msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
 			msgRespHead_base.nMsgBodyLen = 0;
-			msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+			// msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 			session->SendRespPacket(msgRespHead_base, cst_nResp_Code_DEV_OFFLINE, nullptr, false);
 		}
 		delete[] originMsgBody;
@@ -979,7 +983,7 @@ void KxBusinessLogicMgr::AppCtrlDevElecLockCallBack(std::shared_ptr<KxDevSession
 				*(unsigned short *)(msgBody + nBufLen) = nCrc16;
 				nBufLen += sizeof(unsigned short);
 				msgDevReqHead_base.nMsgBodyLen = nBufLen;
-				msgDevReqHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevReqHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+				// msgDevReqHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevReqHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 				auto msgP = std::make_shared<KxMsgPacket_Basic>(msgPacket);
 				devSession->SendMsgPacket(msgDevReqHead_base, msgBody, true, std::make_shared<KxBussinessLogicNode>(session, msgP));
 			}
@@ -992,7 +996,7 @@ void KxBusinessLogicMgr::AppCtrlDevElecLockCallBack(std::shared_ptr<KxDevSession
 				msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
 				msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
 				msgRespHead_base.nMsgBodyLen = 0;
-				msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+				// msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 				session->SendRespPacket(msgRespHead_base, cst_nResp_Code_SEND_DEV_ERR, nullptr, false);
 			}
 		}
@@ -1004,7 +1008,7 @@ void KxBusinessLogicMgr::AppCtrlDevElecLockCallBack(std::shared_ptr<KxDevSession
 			msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
 			msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
 			msgRespHead_base.nMsgBodyLen = 0;
-			msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+			// msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 			session->SendRespPacket(msgRespHead_base, cst_nResp_Code_DEV_OFFLINE, nullptr, false);
 		}
 		delete[] originMsgBody;
@@ -1085,7 +1089,7 @@ void KxBusinessLogicMgr::AppCtrlDevFileDeliverCallBack(std::shared_ptr<KxDevSess
 				nMsgDataLen += sizeof(unsigned short);
 				msgDevReqHead_base.nCryptFlag = 1;
 				msgDevReqHead_base.nMsgBodyLen = nMsgDataLen;
-				msgDevReqHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevReqHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+				// msgDevReqHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevReqHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 				// auto msgP = std::make_shared<KxMsgPacket_Basic>(msgPacket);
 				// auto LogicNode = std::make_shared<KxBussinessLogicNode>(session, msgP);
 
@@ -1133,7 +1137,7 @@ void KxBusinessLogicMgr::AppCtrlDevFileDeliverCallBack(std::shared_ptr<KxDevSess
 
 					msgDevDeliverFile_base.nMsgBodyLen = nMsgPacketBodyLen;
 					++msgDevDeliverFile_base.nSeqNum;
-					msgDevDeliverFile_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevDeliverFile_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+					// msgDevDeliverFile_base.nCrc16 = crc16_ccitt((unsigned char *)&msgDevDeliverFile_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 
 					devSession->SendMsgPacket(msgDevDeliverFile_base, pMsgBody_FileData, true);
 
@@ -1178,7 +1182,7 @@ void KxBusinessLogicMgr::AppCtrlDevFileDeliverCallBack(std::shared_ptr<KxDevSess
 				msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
 				msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
 				msgRespHead_base.nMsgBodyLen = 0;
-				msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+				// msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 				session->SendRespPacket(msgRespHead_base, cst_nResp_Code_SEND_DEV_ERR, nullptr, false);
 			}
 		}
@@ -1190,7 +1194,7 @@ void KxBusinessLogicMgr::AppCtrlDevFileDeliverCallBack(std::shared_ptr<KxDevSess
 			msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
 			msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
 			msgRespHead_base.nMsgBodyLen = 0;
-			msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+			// msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 			session->SendRespPacket(msgRespHead_base, cst_nResp_Code_DEV_OFFLINE, nullptr, false);
 		}
 	}

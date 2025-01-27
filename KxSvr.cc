@@ -126,7 +126,7 @@ void KxServer::onMsgResp(std::shared_ptr<KxMsgPacket_Basic> resp)
                     msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
                     msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
                     msgRespHead_base.nMsgBodyLen = 0;
-                    msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+                    // msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
                     auto session = msgNode->m_logicNode->m_session;
                     if (session)
                         session->SendRespPacket(msgRespHead_base, resp->getRespCode(), nullptr, false);
@@ -193,7 +193,7 @@ void KxServer::CheckTimeOutSvrMsgWaitItem(const std::time_t &tm_now)
                     msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
                     msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
                     msgRespHead_base.nMsgBodyLen = 0;
-                    msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+                    // msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
                     auto session = logicNode->m_session;
                     if (session)
                         session->SendRespPacket(msgRespHead_base, cst_nResp_Code_SEND_DEV_ERR, nullptr, false);

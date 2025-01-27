@@ -206,15 +206,15 @@ respcode为0时：
 
 **注意：包体部分是AES之后的数据，设备端需解密后验证时间和SessionId后处理**
 - 加密部分报文
-    - st_time localtim
+    - st_time      localtim
         - year         2Byte
         - month        1Byte
         - day          1Byte
         - hour         1Byte
         - min          1Byte
         - second       1Byte   //以上数据在数据库中存为8字节 timestamp
-    - st_lngPos    lng位置  float8  8Byte
-    - st_latPos    lat位置  float8  8Byte  
+    - st_lngPos    8Byte   lng位置  float8  
+    - st_latPos    8Byte   lat位置  float8   
     - end_time     localtime
         - year         2Byte
         - month        1Byte
@@ -222,13 +222,17 @@ respcode为0时：
         - hour         1Byte
         - min          1Byte
         - second       1Byte   //以上数据在数据库中存为8字节 timestamp
-    - end_lngPos   lng位置  float8  8Byte
-    - end_latPos   lat位置  float8  8Byte  
-    - ltinerary    行程  以10m记  int
-    - maxSpeed     最高速度
-    - aveSpeed     平均速度
-    - maxCurrent   最大供电电流
-    - batteryId    电池编号            //如更换电池，上一行程结束，新行程重新开始
+    - end_lngPos    8Byte   lng位置  float8 
+    - end_latPos    8Byte   lat位置  float8  8Byte  
+    - ltinerary     4Byte    行程(以10m计)
+    - maxSpeed      2Byte    最高速度   整数 mm/s 
+    - aveSpeed      2Byte    平均速度   整数 mm/s 
+    - maxCurrent    2Byte    最大供电电流     u16  电流值*100
+    - batteryId     32Byte   动力电池编号 string          //如更换电池，上一行程结束，新行程重新开始
+    - nPointCount   4Byte   GPS坐标点数量
+    - Points    不包含起始和结束位置的位置点数据
+        - lngPos    lng位置  double  8Byte
+        - latPos    lat位置  double  8Byte
 - nDataLen  4Byte    //原始数据的长度
 - crc16     2Byte    //原始数据的crc16
 
@@ -247,7 +251,7 @@ respcode为0时：
 ### 包体部分 
 **注意：包体部分是AES之后的数据，设备端需解密后验证时间和SessionId后处理**
 - 加密部分报文
-    - st_time localtim
+    - st_time localtime
         - year         2Byte
         - month        1Byte
         - day          1Byte
