@@ -12,10 +12,12 @@ using asio::ip::tcp;
 
 using namespace std::chrono_literals;
 
+const unsigned short cst_ushort_1022_packet_len = 2048;
+
 const unsigned char default_aes_key[] = {0x51, 0x5D, 0x3D, 0x22, 0x97, 0x47, 0xC8, 0xFD, 0x9F, 0x30, 0x41, 0xD0, 0x8C, 0x0A, 0xE9, 0x10};
 const unsigned char default_aes_iv[] = {0x13, 0xF1, 0xDA, 0xC8, 0x8B, 0xB6, 0xE2, 0xCD, 0x9B, 0xEA, 0xE0, 0x63, 0x8F, 0x3F, 0x53, 0xAB};
 
-const unsigned char dev10001_aes_key[] = {0x51, 0x5D, 0x3D, 0x22, 0x97, 0x47, 0xC8, 0xFD, 0x9F, 0x30, 0x41, 0xD0, 0x8C, 0x0A, 0xE9, 0x10};
+const unsigned char dev10001_aes_key[] = {0x3e, 0xb4, 0x2f, 0x14, 0x81, 0xbe, 0x6c, 0x35, 0xed, 0x3f, 0xe9, 0xf4, 0x3d, 0x96, 0x49, 0x2e};
 const unsigned char dev10002_aes_key[] = {0xb9, 0xde, 0x35, 0xcf, 0x97, 0x2c, 0x80, 0x4b, 0x0c, 0x4b, 0x90, 0x0f, 0x33, 0xe3, 0x28, 0x48};
 const unsigned char dev10009_aes_key[] = {0xfa, 0x91, 0x97, 0xfe, 0x55, 0xd5, 0x34, 0xe9, 0x41, 0x5a, 0x89, 0x6a, 0x84, 0x1f, 0xb5, 0x4f};
 
@@ -422,43 +424,76 @@ void KxClient::onHanleMsg(std::shared_ptr<KxMsgPacket_Basic> msg_)
         if (*pDataCrc == crc16_ccitt(msgData, ncrc_len))
         {
           std::string strOutFileName = "./saved_1022_";
-          strOutFileName += std::to_string(msg_h.nSeqNum);
-          strOutFileName += "_";
-          strOutFileName += std::to_string(fileData.nFileDataPos);
-          std::ofstream of_file(strOutFileName, std::ios_base::binary | std::ios_base::out);
-          if (of_file)
+
+          strOutFileName += m_fileNotify_msg.szFileName;
+          // strOutFileName += std::to_string(msg_h.nSeqNum);
+          // strOutFileName += "_";
+          // strOutFileName += std::to_string(fileData.nFileDataPos);
+          if (m_fileUpdatePos == fileData.nFileDataPos)
           {
+            std::ofstream of_file(strOutFileName, std::ios_base::binary | std::ios_base::out | std::ios_base::app);
+            if (of_file)
+            {
+              of_file.write((const char *)fileData.fileData, fileData.nDataLen);
+              of_file.close();
+              m_fileUpdatePos += fileData.nDataLen;
+              if (fileData.nFileDataPos + fileData.nDataLen == m_fileNotify_msg.nFileLen)
+              {
+                // 发送 1020报文
+                // KxDevFileRecvOK_Msg recv_msg;
+                // recv_msg.devtype = 1;
+                // recv_msg.recvFlag = 1;
+                // recv_msg.FileType = m_fileNotify_msg.FileType;
+                // std::strncpy(recv_msg.szFileName, m_fileNotify_msg.szFileName, sizeof(recv_msg.szFileName));
+                // recv_msg.nFileLen = m_fileNotify_msg.nFileLen;
+                // std::memcpy(recv_msg.fileMd5, m_fileNotify_msg.fileMd5, sizeof(recv_msg.fileMd5));
+                // const std::time_t t_c = std::time(nullptr);
+                // auto tm_val = std::localtime(&t_c);
+                // recv_msg.tmYear = tm_val->tm_year + 1900;
+                // recv_msg.tmMonth = tm_val->tm_mon + 1;
+                // recv_msg.tmDay = tm_val->tm_mday;
+                // recv_msg.tmHour = tm_val->tm_hour;
+                // recv_msg.tmMin = tm_val->tm_min;
+                // recv_msg.tmSec = tm_val->tm_sec;
 
-            of_file.write((const char *)fileData.fileData, fileData.nDataLen);
-            of_file.close();
-            // 发送 1020报文
-            KxDevFileRecvOK_Msg recv_msg;
-            recv_msg.devtype = 1;
-            recv_msg.recvFlag = 1;
-            recv_msg.FileType = m_fileNotify_msg.FileType;
-            std::strncpy(recv_msg.szFileName, m_fileNotify_msg.szFileName, sizeof(recv_msg.szFileName));
-            recv_msg.nFileLen = m_fileNotify_msg.nFileLen;
-            std::memcpy(recv_msg.fileMd5, m_fileNotify_msg.fileMd5, sizeof(recv_msg.fileMd5));
-            const std::time_t t_c = std::time(nullptr);
-            auto tm_val = std::localtime(&t_c);
-            recv_msg.tmYear = tm_val->tm_year + 1900;
-            recv_msg.tmMonth = tm_val->tm_mon + 1;
-            recv_msg.tmDay = tm_val->tm_mday;
-            recv_msg.tmHour = tm_val->tm_hour;
-            recv_msg.tmMin = tm_val->tm_min;
-            recv_msg.tmSec = tm_val->tm_sec;
+                // KxMsgHeader_Base msgHead_base;
+                // msgHead_base.nMsgId = MSG_DEV_FILE_RECV_OK;
+                // msgHead_base.nSeqNum = msg_h.nSeqNum;
+                // msgHead_base.nMsgBodyLen = sizeof(recv_msg);
+                // unsigned int nHeaderExtra[2] = {0};
+                // nHeaderExtra[0] = getDevId();
+                // nHeaderExtra[1] = getSessionId();
+                // unsigned char *pMsgData = (unsigned char *)&recv_msg;
+                // auto msg = std::make_shared<KxMsgPacket_Basic>(msgHead_base, nHeaderExtra, pMsgData, false);
+                // msg->calculate_crc();
+                // write(msg);
+              }
+              else
+              {
+                // 继续发送1022获取更多
+                KxDevGet_FileData_Msg getFile_msg;
+                getFile_msg.FileType = m_fileNotify_msg.FileType;
+                getFile_msg.nDevType = 1;
+                getFile_msg.nFileDataPos = m_fileUpdatePos;
 
-            KxMsgHeader_Base msgHead_base;
-            msgHead_base.nMsgId = MSG_DEV_FILE_RECV_OK;
-            msgHead_base.nSeqNum = msg_h.nSeqNum;
-            msgHead_base.nMsgBodyLen = sizeof(recv_msg);
-            unsigned int nHeaderExtra[2] = {0};
-            nHeaderExtra[0] = getDevId();
-            nHeaderExtra[1] = getSessionId();
-            unsigned char* pMsgData = (unsigned char*)&recv_msg;
-            auto msg = std::make_shared<KxMsgPacket_Basic>(msgHead_base, nHeaderExtra, pMsgData, false);
-            msg->calculate_crc();
-            write(msg);
+                getFile_msg.nDataLen = std::min(m_fileNotify_msg.nFileLen - m_fileUpdatePos, (unsigned int)cst_ushort_1022_packet_len);
+                std::strncpy(getFile_msg.szFileName, m_fileNotify_msg.szFileName, sizeof(getFile_msg.szFileName));
+                std::memcpy(getFile_msg.fileURL_KEY, m_fileNotify_msg.fileURL_KEY, sizeof(m_fileNotify_msg.fileURL_KEY));
+
+                KxMsgHeader_Base msgHead_base;
+                msgHead_base.nMsgId = MSG_DEV_GET_FILE_DATA;
+                msgHead_base.nSeqNum = msg_h.nSeqNum + 1;
+                msgHead_base.nMsgBodyLen = sizeof(getFile_msg);
+                unsigned int nHeaderExtra[2] = {0};
+                nHeaderExtra[0] = getDevId();
+                nHeaderExtra[1] = getSessionId();
+                unsigned char *pFileData = (unsigned char *)&getFile_msg;
+                auto msg = std::make_shared<KxMsgPacket_Basic>(msgHead_base, nHeaderExtra, pFileData, false);
+                msg->calculate_crc();
+                std::this_thread::sleep_for(20ms);
+                write(msg);
+              }
+            }
           }
         }
       }
@@ -650,8 +685,8 @@ void KxClient::onHanleMsg(std::shared_ptr<KxMsgPacket_Basic> msg_)
             KxDevGet_FileData_Msg getFile_msg;
             getFile_msg.FileType = notify_msg.FileType;
             getFile_msg.nDevType = 1;
-            getFile_msg.nFileDataPos = 0;
-            getFile_msg.nDataLen = std::min(notify_msg.nFileLen, (unsigned int)0xFFFF);
+            getFile_msg.nFileDataPos = m_fileUpdatePos = 0;
+            getFile_msg.nDataLen = std::min(notify_msg.nFileLen, (unsigned int)cst_ushort_1022_packet_len);
             std::strncpy(getFile_msg.szFileName, notify_msg.szFileName, sizeof(getFile_msg.szFileName));
             std::memcpy(getFile_msg.fileURL_KEY, notify_msg.fileURL_KEY, sizeof(notify_msg.fileURL_KEY));
 

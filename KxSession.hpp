@@ -81,7 +81,7 @@ public:
 	{
 		return m_tm_last;
 	}
-	void checkTimeOut(const std::time_t &tm_val);
+	bool checkTimeOut(const std::time_t &tm_val);
 	unsigned char *getAESIvData()
 	{
 		return m_aes_iv;

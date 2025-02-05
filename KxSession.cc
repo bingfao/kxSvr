@@ -266,8 +266,9 @@ void KxDevSession::setLastTime(const std::time_t &tm_val)
 	m_tm_last = tm_val;
 }
 
-void KxDevSession::checkTimeOut(const std::time_t &tm_val)
+bool KxDevSession::checkTimeOut(const std::time_t &tm_val)
 {
+	bool brt(false);
 	if (!m_bWebSvr)
 	{
 		auto tmdiff = tm_val - m_tm_last;
@@ -276,8 +277,10 @@ void KxDevSession::checkTimeOut(const std::time_t &tm_val)
 			// std::cout << "KxDevSession timeout sessionId: " << std::hex << m_nSessionId << std::dec << std::endl;
 			KX_LOG_FUNC_(std::format("KxDevSession timeout sessionId: 0x{:x}, client addr: {}", m_nSessionId, m_strAddr));
 			Close();
+			brt = true;
 		}
 	}
+	return brt;
 }
 
 void KxDevSession::onPeerClose()

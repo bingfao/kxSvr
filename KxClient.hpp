@@ -34,7 +34,8 @@ public:
         socket_(io_context),
         m_pReadMsgBodyBuf(nullptr), m_nMsgBodyBufLen(0),
         m_b_thdExit(false),
-        m_bClosed(false)
+        m_bClosed(false),
+        m_fileUpdatePos(0)
   {
     do_connect(endpoints);
   }
@@ -347,6 +348,7 @@ private:
   std::mutex m_mutex_tosend;
   std::mutex m_mutex_sended;
   KxDevFileUpdateNotify_OrMsg m_fileNotify_msg;
+  unsigned int m_fileUpdatePos;
 };
 
 #endif

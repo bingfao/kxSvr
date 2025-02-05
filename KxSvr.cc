@@ -228,10 +228,18 @@ void KxServer::CheckTimeOutSessions(const std::error_code & /*e*/,
     if (++nTimerCount == 5)
     {
         std::lock_guard<std::mutex> lock(m_mutex_map);
-        for (const auto &[key, session] : m_sessionsMap)
+        for (auto it = m_sessionsMap.begin(); it != m_sessionsMap.end();)
         {
-            session->checkTimeOut(t_c);
+            if (it->second->checkTimeOut(t_c))
+                it = m_sessionsMap.erase(it);
+            else
+                ++it;
         }
+        // for (const auto &[key, session] : m_sessionsMap)
+        // {
+        //     session->checkTimeOut(t_c);
+        // }
+
         nTimerCount = 0;
     }
 }
@@ -248,8 +256,7 @@ void KxServer::ClearSession(unsigned int nSessionId)
                                             if(item->m_logicNode){
                                                 b = item->m_logicNode->m_session == session; 
                                             }
-                                            return b;
-                                            });
+                                            return b; });
         std::lock_guard<std::mutex> lock(m_mutex_map);
         m_sessionsMap.erase(nSessionId);
     }
