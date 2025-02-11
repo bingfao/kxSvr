@@ -97,6 +97,21 @@ public:
 	{
 		m_bWebSvr = true;
 	}
+	void setLogSendData( bool bFlag){
+		m_bLogSendData = bFlag;
+	}
+	void setLogRecvData(bool bFlag){
+		m_bLogRecvData = bFlag;
+	}
+	bool getSendDataLogFlag()
+	{
+		return m_bLogSendData;
+	}
+	bool getRecvDataLogFlag()
+	{
+		return m_bLogRecvData;
+	}
+
     const std::string& getaddrinfo(){
 		return m_strAddr;
 	}
@@ -120,6 +135,8 @@ private:
 	unsigned char m_aes_key[AES_IV_BLOCK_SIZE];
 	unsigned char m_aes_iv[AES_IV_BLOCK_SIZE];
 	bool m_bWebSvr;
+	bool m_bLogSendData;   // 用来标识是否日志记录socket发送数据
+	bool m_bLogRecvData;   // 用来标识是否日志记录socket发送数据
 };
 
 #endif //_KX_SESSION_HPP_

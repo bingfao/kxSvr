@@ -40,6 +40,7 @@ const int MSG_APP_DEVCTRL_DEVGUARD = 4003;
 const int MSG_APP_DEVCTRL_OPENELECLOCK = 4004;
 const int MSG_APP_DEVCTRL_LIGHT = 4005;
 const int MSG_APPTEST_DEVCTRL_FILEDELIVER = 4020;
+const int MSG_APPTEST_DEVCTRL_SOCKETDATA_LOG = 4040;
 
 const unsigned int AES_IV_BLOCK_SIZE = 16;
 const unsigned int FILE_DATA_BASE_LEN = 256;
@@ -215,6 +216,16 @@ struct KxAppDevCtrlFileDeliver_Base
 	unsigned int nFileLen;
 	unsigned char fileMd5[16];
 	unsigned char szFileData[FILE_DATA_BASE_LEN];
+};
+
+struct KxAppDevCtrl_log_SocketData
+{
+    unsigned int nDevId;
+	unsigned char devtype;
+	std::time_t svrTime;
+	int nSysUsrId;
+	unsigned char logSendFlag;
+	unsigned char logRecvFlag;
 };
 
 struct KxDevCtrlOpenLock_OrMsg

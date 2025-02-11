@@ -135,6 +135,9 @@ void KxBusinessLogicMgr::RegisterCallBacks()
 	m_map_FunCallbacks[MSG_APPTEST_DEVCTRL_FILEDELIVER] = std::bind(&KxBusinessLogicMgr::AppCtrlDevFileDeliverCallBack, this,
 																	std::placeholders::_1, std::placeholders::_2);
 
+	m_map_FunCallbacks[MSG_APPTEST_DEVCTRL_SOCKETDATA_LOG] = std::bind(&KxBusinessLogicMgr::AppCtrlDevLogSocketDataCallBack, this,
+																	std::placeholders::_1, std::placeholders::_2);
+
 	m_map_FunCallbacks[MSG_WEBSVR_REGISTER] = std::bind(&KxBusinessLogicMgr::WebSvrRegMsgCallBack, this,
 														std::placeholders::_1, std::placeholders::_2);
 	m_map_FunCallbacks[MSG_WEBSVR_HEARTBEAT] = std::bind(&KxBusinessLogicMgr::WebSvrHeartBeatMsgCallBack, this,
@@ -144,7 +147,7 @@ void KxBusinessLogicMgr::RegisterCallBacks()
 	m_map_FunCallbacks[MSG_DEV_GET_FILE_DATA] = std::bind(&KxBusinessLogicMgr::DevGetFileDataMsgCallBack, this,
 														  std::placeholders::_1, std::placeholders::_2);
 	m_map_FunCallbacks[MSG_DEV_FILE_RECV_OK] = std::bind(&KxBusinessLogicMgr::DevGetFileOKMsgCallBack, this,
-														  std::placeholders::_1, std::placeholders::_2);
+														 std::placeholders::_1, std::placeholders::_2);
 }
 
 void KxBusinessLogicMgr::WebSvrHeartBeatMsgCallBack(std::shared_ptr<KxDevSession> session, const KxMsgPacket_Basic &msgPacket)
@@ -292,7 +295,7 @@ void KxBusinessLogicMgr::DevStatusMsgCallBack(std::shared_ptr<KxDevSession> sess
 	msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
 	msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
 	msgRespHead_base.nMsgBodyLen = 0;
-	//msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+	// msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 	session->SendRespPacket(msgRespHead_base, cst_nResp_Code_OK, nullptr, false);
 	const std::chrono::time_point<std::chrono::system_clock> tp_now =
 		std::chrono::system_clock::now();
@@ -595,7 +598,7 @@ void KxBusinessLogicMgr::DevGetFileDataMsgCallBack(std::shared_ptr<KxDevSession>
 
 										// msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 										session->SendRespPacket(msgRespHead_base, cst_nResp_Code_OK, pFileData, true);
-										
+
 										delete[] pFileData;
 										pFileData = nullptr;
 									}
@@ -670,7 +673,7 @@ void KxBusinessLogicMgr::DevGetFileOKMsgCallBack(std::shared_ptr<KxDevSession> s
 					auto row_ = rdev[0];
 					auto recid = row_[0].as<int>();
 					std::string strDevTime = std::format("{}-{}-{} {}:{}:{}",
-						recv_msg.tmYear, recv_msg.tmMonth, recv_msg.tmDay, recv_msg.tmHour, recv_msg.tmMin, recv_msg.tmSec);
+														 recv_msg.tmYear, recv_msg.tmMonth, recv_msg.tmDay, recv_msg.tmHour, recv_msg.tmMin, recv_msg.tmSec);
 					strsql = std::format("update \"devFileUpdateRec\" set updatedtime='{}' where recid= {}",
 										 strDevTime, recid);
 					KX_LOG_FUNC_(strsql);
@@ -1075,7 +1078,7 @@ void KxBusinessLogicMgr::AppCtrlDevFileDeliverCallBack(std::shared_ptr<KxDevSess
 			// if (pMsgFileBody)
 			// {
 			brt = devSession->AES_encrypt(pOriMsg, nBufLen, pMsgFileBody, nMsgDataLen);
-			
+
 			// KX_LOG_FUNC_(pOriMsg, std::min(256U,nBufLen));
 			// KX_LOG_FUNC_(pMsgFileBody, std::min(256U,nMsgDataLen));
 
@@ -1189,6 +1192,49 @@ void KxBusinessLogicMgr::AppCtrlDevFileDeliverCallBack(std::shared_ptr<KxDevSess
 				// msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
 				session->SendRespPacket(msgRespHead_base, cst_nResp_Code_SEND_DEV_ERR, nullptr, false);
 			}
+		}
+		else
+		{
+			KxMsgHeader_Base msgRespHead_base;
+			// auto msgHeader = msgPacket.getMsgHeader();
+			msgRespHead_base.nMsgId = msgHeader.nMsgId;
+			msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
+			msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
+			msgRespHead_base.nMsgBodyLen = 0;
+			// msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+			session->SendRespPacket(msgRespHead_base, cst_nResp_Code_DEV_OFFLINE, nullptr, false);
+		}
+	}
+}
+
+
+void KxBusinessLogicMgr::AppCtrlDevLogSocketDataCallBack(std::shared_ptr<KxDevSession> session, const KxMsgPacket_Basic &msgPacket)
+{
+	auto msgHeader = msgPacket.getMsgHeader();
+	auto pMsgBody = msgPacket.getMsgBodyBuf();
+	// bool brt=false;
+	if (msgHeader.nMsgBodyLen >= sizeof(KxAppDevCtrl_log_SocketData))
+	{
+		const std::time_t t_c = std::time(nullptr);
+		session->setLastTime(t_c);
+
+		KxAppDevCtrl_log_SocketData *pCtrlPacket = (KxAppDevCtrl_log_SocketData *)pMsgBody;
+		
+		// 查找对应的dev 的 session
+		unsigned int nDevId = pCtrlPacket->nDevId;
+		auto devSession = session->getDevSession(nDevId);
+		if (devSession)
+		{
+			devSession->setLogSendData(pCtrlPacket->logSendFlag == 1);
+			devSession->setLogRecvData(pCtrlPacket->logRecvFlag == 1);
+			KxMsgHeader_Base msgRespHead_base;
+			// auto msgHeader = msgPacket.getMsgHeader();
+			msgRespHead_base.nMsgId = msgHeader.nMsgId;
+			msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
+			msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
+			msgRespHead_base.nMsgBodyLen = 0;
+			// msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+			session->SendRespPacket(msgRespHead_base, cst_nResp_Code_OK, nullptr, false);
 		}
 		else
 		{

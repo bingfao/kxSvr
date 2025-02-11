@@ -215,6 +215,52 @@ int main(int argc, char *argv[])
           is.close();
         }
       }
+      else if (str_input.starts_with("4040C_"))
+      {
+        c.setDevId(0);
+        msg_b.nMsgId = 4040;
+        auto strDevId = str_input.substr(6);
+        int nCtrlDevId = std::atoi(strDevId.c_str());
+        KxAppDevCtrl_log_SocketData ctrl_msg;
+        ctrl_msg.devtype = 1;
+        ctrl_msg.nDevId = nCtrlDevId;
+        ctrl_msg.nSysUsrId = 900001;
+        ctrl_msg.svrTime = std::time(nullptr);
+        ctrl_msg.logSendFlag = 1;
+        ctrl_msg.logRecvFlag = 1;
+
+        nHeaderExtra[0] = c.getDevId();
+        nHeaderExtra[1] = c.getSessionId();
+        msg_b.nMsgBodyLen = sizeof(KxAppDevCtrl_log_SocketData);
+
+        auto msg = std::make_shared<KxMsgPacket_Basic>(msg_b, nHeaderExtra, (unsigned char *)&ctrl_msg, true);
+        
+        msg->calculate_crc();
+        c.write(msg);
+      }
+      else if (str_input.starts_with("4040D_"))
+      {
+        c.setDevId(0);
+        msg_b.nMsgId = 4040;
+        auto strDevId = str_input.substr(6);
+        int nCtrlDevId = std::atoi(strDevId.c_str());
+        KxAppDevCtrl_log_SocketData ctrl_msg;
+        ctrl_msg.devtype = 1;
+        ctrl_msg.nDevId = nCtrlDevId;
+        ctrl_msg.nSysUsrId = 900001;
+        ctrl_msg.svrTime = std::time(nullptr);
+        ctrl_msg.logSendFlag = 0;
+        ctrl_msg.logRecvFlag = 0;
+
+        nHeaderExtra[0] = c.getDevId();
+        nHeaderExtra[1] = c.getSessionId();
+        msg_b.nMsgBodyLen = sizeof(KxAppDevCtrl_log_SocketData);
+
+        auto msg = std::make_shared<KxMsgPacket_Basic>(msg_b, nHeaderExtra, (unsigned char *)&ctrl_msg, true);
+        
+        msg->calculate_crc();
+        c.write(msg);
+      }
       else if (str_input == "9" || str_input == "9001")
       {
         c.setDevId(0);

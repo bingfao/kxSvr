@@ -777,7 +777,30 @@ webSvr收到后，后续报文，使用该IV来做AES计算
     - 0xFF  发生错误
 
 
+### 设置SVR记录socket报文日志
 
+此对应服务端控制台，设置通信报文日志记录标识
+
+- MsgId 4040
+- CryptFlag 0
+#### 包体部分 
+- devId           4Byte
+- devtype         1Byte  
+- timestamp       8Byte
+- sysUsrId        4Byte
+- logSendFlag     1Byte
+  - 1 打开日志记录
+  - 0 关闭日志记录
+- logRecvFlag     1Byte
+  - 1 打开日志记录
+  - 0 关闭日志记录
+        
+
+#### 应答包
+- RespCode
+    - 0   Ok
+    - 1   拒绝
+    - 0xFF  发生错误
 
 
 

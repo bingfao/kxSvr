@@ -15,7 +15,8 @@
 constexpr int MAX_SENDQUE = 2048;
 
 KxDevSession::KxDevSession(asio::io_context &io_context, KxServer *server)
-	: m_io_context(io_context), m_socket(io_context), m_server(server), m_b_close(false), m_nSessionId(0)
+	: m_io_context(io_context), m_socket(io_context), m_server(server), m_b_close(false)
+	, m_nSessionId(0), m_bWebSvr(false), m_bLogSendData(false), m_bLogRecvData(false)
 {
 }
 
@@ -362,7 +363,11 @@ void KxDevSession::Start()
 										co_return;
 									}
 									auto msgPacket = std::make_shared<KxMsgPacket_Basic>(msgHeader_base,nHeaderExtData,m_dataBuf,false);
-									
+									if(getRecvDataLogFlag()){
+										KX_LOG_FUNC_(std::format("Session 0x{:x} DevId {} recv data.", m_nSessionId,m_nDevId));
+										KX_LOG_FUNC_(msgPacket->getHeaderBuf(),msgPacket->getHeaderLen());
+										KX_LOG_FUNC_(msgPacket->getMsgBodyBuf(),msgPacket->getBodyLen());
+									}
 									auto logicNode = std::make_shared<KxBussinessLogicNode>(shared_from_this(),msgPacket);
 									KxBusinessLogicMgr::GetInstance().PostMsgToQue(logicNode);
 								}
@@ -374,6 +379,11 @@ void KxDevSession::Start()
 									if( n ==0 ){
 										onPeerClose();
 										co_return;
+									}
+									if(getRecvDataLogFlag()){
+										KX_LOG_FUNC_(std::format("Session 0x{:x} DevId {} recv data.", m_nSessionId,m_nDevId));
+										KX_LOG_FUNC_(msgPacket->getHeaderBuf(),msgPacket->getHeaderLen());
+										KX_LOG_FUNC_(msgPacket->getMsgBodyBuf(),msgPacket->getBodyLen());
 									}
 									auto logicNode = std::make_shared<KxBussinessLogicNode>(shared_from_this(),msgPacket);
 									KxBusinessLogicMgr::GetInstance().PostMsgToQue(logicNode);
@@ -419,6 +429,18 @@ void KxDevSession::SendRespPacket(const KxMsgHeader_Base &msgHeader, unsigned in
 	lock.unlock();
 	std::vector<asio::const_buffer> vec_buf;
 	msgPacket->getvecBuffer(vec_buf);
+	if (getSendDataLogFlag())
+	{
+		KX_LOG_FUNC_(std::format("Session 0x{:x} DevId {} semd Resp data.", m_nSessionId,m_nDevId));
+		for (auto &buf : vec_buf)
+		{
+			auto buf_size = buf.size();
+			if (buf_size)
+			{
+				KX_LOG_FUNC_((unsigned char *)buf.data(), buf_size);
+			}
+		}
+	}
 	asio::async_write(m_socket, vec_buf,
 					  std::bind(&KxDevSession::HandleRespWrited, this, std::placeholders::_1, msgPacket));
 }
@@ -442,6 +464,18 @@ void KxDevSession::SendMsgPacket(const KxMsgHeader_Base &msgHeader, unsigned cha
 	lock.unlock();
 	std::vector<asio::const_buffer> vec_buf;
 	msgPacket->getvecBuffer(vec_buf);
+	if (getSendDataLogFlag())
+	{
+		KX_LOG_FUNC_(std::format("Session 0x{:x} DevId {} semd data.", m_nSessionId,m_nDevId));
+		for (auto &buf : vec_buf)
+		{
+			auto buf_size = buf.size();
+			if (buf_size)
+			{
+				KX_LOG_FUNC_((unsigned char *)buf.data(), buf_size);
+			}
+		}
+	}
 	// 这里有bug，需要处理.....
 	asio::async_write(m_socket, vec_buf,
 					  std::bind(&KxDevSession::HandleMsgWrited, this, std::placeholders::_1, msgLogicNode));
