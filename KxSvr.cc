@@ -235,10 +235,6 @@ void KxServer::CheckTimeOutSessions(const std::error_code & /*e*/,
             else
                 ++it;
         }
-        // for (const auto &[key, session] : m_sessionsMap)
-        // {
-        //     session->checkTimeOut(t_c);
-        // }
 
         nTimerCount = 0;
     }

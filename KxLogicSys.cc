@@ -1075,6 +1075,10 @@ void KxBusinessLogicMgr::AppCtrlDevFileDeliverCallBack(std::shared_ptr<KxDevSess
 			// if (pMsgFileBody)
 			// {
 			brt = devSession->AES_encrypt(pOriMsg, nBufLen, pMsgFileBody, nMsgDataLen);
+			
+			// KX_LOG_FUNC_(pOriMsg, std::min(256U,nBufLen));
+			// KX_LOG_FUNC_(pMsgFileBody, std::min(256U,nMsgDataLen));
+
 			// std::stringstream ss_log;
 			// ss_log << "AES_encrypt, nBufLen: " << nBufLen << ", nMsgDataLen: " << nMsgDataLen << std::endl;
 			// KX_LOG_FUNC_(ss_log.str());

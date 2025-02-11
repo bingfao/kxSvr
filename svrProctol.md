@@ -507,22 +507,7 @@ HttpResponse采用json形式返回
   - errCode
   - errMsg
 
-## 查看车辆已绑定主机信息
-/devBindingHosts
 
-httpRequest
-  - type          //type不参与计算hash
-    - 1 wx小程序
-    - 2 独立App  
-  - usrId 
-  - devId
-  - devType
-  **以下项不参与计算hash**
-  - hash
-
-HttpResponse采用json形式返回
-  - errCode
-  - errMsg
 
 
 
@@ -793,29 +778,7 @@ webSvr收到后，后续报文，使用该IV来做AES计算
 
 
 
-### 查看车辆已绑定主机信息
 
-- MsgId  4030
-- CryptFlag 1
-#### 包体部分 
-**注意：包体部分是AES之后的数据**
-- 加密部分报文
-  - devId           4Byte
-  - devtype         1Byte  
-  - timestamp       8Byte
-  - usrId           4Byte
-- nDataLen  //原始数据的长度
-- crc16     //原始数据的crc16
-
-#### 应答包
-- RespCode
-    - 0   Ok
-    - 1   拒绝
-- PacketData
-  - hostCount
-  - hostDatas
-    - hostid         16Byte
-    - bindingTime    4Byte 
 
 
 

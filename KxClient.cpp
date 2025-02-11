@@ -199,6 +199,7 @@ int main(int argc, char *argv[])
               int nMdLen = sizeof(dev_msg.fileMd5);
               Kx_MD5((unsigned char *)strFileData.c_str(), nFileLen,
                      dev_msg.fileMd5, nMdLen);
+              // KX_LOG_FUNC_(dev_msg.fileMd5,nMdLen);
               memcpy(dev_msg.szFileData, &strFileData[0], nFileLen);
 
               nHeaderExtra[0] = c.getDevId();
@@ -563,7 +564,9 @@ void KxClient::onHanleMsg(std::shared_ptr<KxMsgPacket_Basic> msg_)
       if (AES_decryptPacket(pMsgBody, nMsgDataLen, szOut, nOutDataLen))
       {
         // KX_LOG_FUNC_(pMsgBody, nMsgDataLen);
+        // KX_LOG_FUNC_(pMsgBody, std::min(256U,nMsgDataLen));
         // KX_LOG_FUNC_(szOut, nOutDataLen);
+        // KX_LOG_FUNC_(szOut, std::min(256U,nOutDataLen));
         if (0)
         {
           unsigned int *pnDataLen = (unsigned int *)(pMsgBody + nMsgDataLen);

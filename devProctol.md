@@ -588,7 +588,7 @@ respcode为0时：
     - svrtime         8Byte timestamp  localtime  
     - devSessionId    4Byte
     - KeyType         1Byte  解锁设备类型
-        - 1   NFC      //暂时可能只支持NFC一种，蓝牙等无法通过该方法
+        - 1   NFC      //暂时可能只支持NFC一种，蓝牙等无法通过该方法??
     - KeyIdLen        1Byte  解锁设备Id长度
     - KeyId           nByte  解锁设备的Id
 - nDataLen  4Byte    //原始数据的长度
