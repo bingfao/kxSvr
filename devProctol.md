@@ -624,5 +624,30 @@ respcode为0时：
     - 1   拒绝
 
 
+### 设置dev日志记录level
 
+此对应服务端控制台，设置通信报文日志记录标识
+
+- MsgId 2041
+- CryptFlag 0
+#### 包体部分 
+- devSessionId    4Byte
+- logSendFlag     1Byte
+  - 1 打开日志记录
+  - 0 关闭日志记录
+- logRecvFlag     1Byte
+  - 1 打开日志记录
+  - 0 关闭日志记录
+- logLevel        1Byte
+  - bit0  error
+  - bit1  waring
+  - bit2  info
+  - bit3  debug
+        
+
+#### 应答包
+- RespCode
+    - 0   Ok
+    - 1   拒绝
+    - 0xFF  发生错误
 

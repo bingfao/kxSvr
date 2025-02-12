@@ -135,8 +135,11 @@ void KxBusinessLogicMgr::RegisterCallBacks()
 	m_map_FunCallbacks[MSG_APPTEST_DEVCTRL_FILEDELIVER] = std::bind(&KxBusinessLogicMgr::AppCtrlDevFileDeliverCallBack, this,
 																	std::placeholders::_1, std::placeholders::_2);
 
-	m_map_FunCallbacks[MSG_APPTEST_DEVCTRL_SOCKETDATA_LOG] = std::bind(&KxBusinessLogicMgr::AppCtrlDevLogSocketDataCallBack, this,
+	m_map_FunCallbacks[MSG_APPTEST_SVRCTRL_SOCKETDATA_LOG] = std::bind(&KxBusinessLogicMgr::AppCtrlSvrLogSocketDataCallBack, this,
 																	std::placeholders::_1, std::placeholders::_2);
+
+	m_map_FunCallbacks[MSG_APPTEST_DEVCTRL_LOGLEVEL] = std::bind(&KxBusinessLogicMgr::AppCtrlDevLogDataCallBack, this,
+																		std::placeholders::_1, std::placeholders::_2);
 
 	m_map_FunCallbacks[MSG_WEBSVR_REGISTER] = std::bind(&KxBusinessLogicMgr::WebSvrRegMsgCallBack, this,
 														std::placeholders::_1, std::placeholders::_2);
@@ -1208,17 +1211,17 @@ void KxBusinessLogicMgr::AppCtrlDevFileDeliverCallBack(std::shared_ptr<KxDevSess
 }
 
 
-void KxBusinessLogicMgr::AppCtrlDevLogSocketDataCallBack(std::shared_ptr<KxDevSession> session, const KxMsgPacket_Basic &msgPacket)
+void KxBusinessLogicMgr::AppCtrlSvrLogSocketDataCallBack(std::shared_ptr<KxDevSession> session, const KxMsgPacket_Basic &msgPacket)
 {
 	auto msgHeader = msgPacket.getMsgHeader();
 	auto pMsgBody = msgPacket.getMsgBodyBuf();
 	// bool brt=false;
-	if (msgHeader.nMsgBodyLen >= sizeof(KxAppDevCtrl_log_SocketData))
+	if (msgHeader.nMsgBodyLen >= sizeof(KxAppSvrCtrl_log_SocketData))
 	{
 		const std::time_t t_c = std::time(nullptr);
 		session->setLastTime(t_c);
 
-		KxAppDevCtrl_log_SocketData *pCtrlPacket = (KxAppDevCtrl_log_SocketData *)pMsgBody;
+		KxAppSvrCtrl_log_SocketData *pCtrlPacket = (KxAppSvrCtrl_log_SocketData *)pMsgBody;
 		
 		// 查找对应的dev 的 session
 		unsigned int nDevId = pCtrlPacket->nDevId;
@@ -1229,6 +1232,62 @@ void KxBusinessLogicMgr::AppCtrlDevLogSocketDataCallBack(std::shared_ptr<KxDevSe
 			devSession->setLogRecvData(pCtrlPacket->logRecvFlag == 1);
 			KxMsgHeader_Base msgRespHead_base;
 			// auto msgHeader = msgPacket.getMsgHeader();
+			msgRespHead_base.nMsgId = msgHeader.nMsgId;
+			msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
+			msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
+			msgRespHead_base.nMsgBodyLen = 0;
+			// msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+			session->SendRespPacket(msgRespHead_base, cst_nResp_Code_OK, nullptr, false);
+		}
+		else
+		{
+			KxMsgHeader_Base msgRespHead_base;
+			// auto msgHeader = msgPacket.getMsgHeader();
+			msgRespHead_base.nMsgId = msgHeader.nMsgId;
+			msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
+			msgRespHead_base.nTypeFlag = cst_Resp_MsgType;
+			msgRespHead_base.nMsgBodyLen = 0;
+			// msgRespHead_base.nCrc16 = crc16_ccitt((unsigned char *)&msgRespHead_base, sizeof(KxMsgHeader_Base) - sizeof(unsigned short));
+			session->SendRespPacket(msgRespHead_base, cst_nResp_Code_DEV_OFFLINE, nullptr, false);
+		}
+	}
+}
+
+void KxBusinessLogicMgr::AppCtrlDevLogDataCallBack(std::shared_ptr<KxDevSession> session, const KxMsgPacket_Basic &msgPacket)
+{
+	auto msgHeader = msgPacket.getMsgHeader();
+	auto pMsgBody = msgPacket.getMsgBodyBuf();
+	// bool brt=false;
+	if (msgHeader.nMsgBodyLen >= sizeof(KxAppDevCtrl_logData))
+	{
+		const std::time_t t_c = std::time(nullptr);
+		session->setLastTime(t_c);
+
+		KxAppDevCtrl_logData *pCtrlPacket = (KxAppDevCtrl_logData *)pMsgBody;
+		
+		// 查找对应的dev 的 session
+		unsigned int nDevId = pCtrlPacket->nDevId;
+		auto devSession = session->getDevSession(nDevId);
+		if (devSession)
+		{
+			// 发送2041
+			KxMsgHeader_Base msgDevReqHead_base;
+			// auto msgHeader = msgPacket.getMsgHeader();
+			msgDevReqHead_base.nMsgId = MSG_DEVCTRL_LOGLEVEL;
+			msgDevReqHead_base.nSeqNum = msgHeader.nSeqNum;
+			msgDevReqHead_base.nTypeFlag = 0;
+
+			KxDevCtrl_logData dev_logdata;
+			dev_logdata.nSessionId = devSession->GetSessionId();
+			dev_logdata.logSendFlag = pCtrlPacket->logSendFlag;
+			dev_logdata.logRecvFlag = pCtrlPacket->logRecvFlag;
+			dev_logdata.loglevel = pCtrlPacket->loglevel;
+
+			msgDevReqHead_base.nMsgBodyLen = sizeof(KxDevCtrl_logData);
+
+			devSession->SendMsgPacket(msgDevReqHead_base,(unsigned char*)&dev_logdata);
+
+			KxMsgHeader_Base msgRespHead_base;
 			msgRespHead_base.nMsgId = msgHeader.nMsgId;
 			msgRespHead_base.nSeqNum = msgHeader.nSeqNum;
 			msgRespHead_base.nTypeFlag = cst_Resp_MsgType;

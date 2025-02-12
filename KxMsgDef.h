@@ -30,6 +30,7 @@ const int MSG_DEVCTRL_LIGHT = 2005;
 const int MSG_DEVCTRL_FILEDELIVER_HEADER = 2020;
 const int MSG_DEVCTRL_FILEDELIVER_DATA = 2021;
 const int MSG_DEVCTRL_FILETOUPDATE_NOTIFY = 2022;
+const int MSG_DEVCTRL_LOGLEVEL = 2041;
 
 const int MSG_WEBSVR_REGISTER = 9001;
 const int MSG_WEBSVR_HEARTBEAT = 9002;
@@ -40,7 +41,8 @@ const int MSG_APP_DEVCTRL_DEVGUARD = 4003;
 const int MSG_APP_DEVCTRL_OPENELECLOCK = 4004;
 const int MSG_APP_DEVCTRL_LIGHT = 4005;
 const int MSG_APPTEST_DEVCTRL_FILEDELIVER = 4020;
-const int MSG_APPTEST_DEVCTRL_SOCKETDATA_LOG = 4040;
+const int MSG_APPTEST_SVRCTRL_SOCKETDATA_LOG = 4040;
+const int MSG_APPTEST_DEVCTRL_LOGLEVEL = 4041;
 
 const unsigned int AES_IV_BLOCK_SIZE = 16;
 const unsigned int FILE_DATA_BASE_LEN = 256;
@@ -207,7 +209,7 @@ struct KxAppDevCtrlElecLock_OrMsg
 
 struct KxAppDevCtrlFileDeliver_Base
 {
-    unsigned int nDevId;
+	unsigned int nDevId;
 	unsigned char devtype;
 	std::time_t svrTime;
 	int nSysUsrId;
@@ -218,14 +220,25 @@ struct KxAppDevCtrlFileDeliver_Base
 	unsigned char szFileData[FILE_DATA_BASE_LEN];
 };
 
-struct KxAppDevCtrl_log_SocketData
+struct KxAppSvrCtrl_log_SocketData
 {
-    unsigned int nDevId;
+	unsigned int nDevId;
 	unsigned char devtype;
 	std::time_t svrTime;
 	int nSysUsrId;
 	unsigned char logSendFlag;
 	unsigned char logRecvFlag;
+};
+
+struct KxAppDevCtrl_logData
+{
+	unsigned int nDevId;
+	unsigned char devtype;
+	std::time_t svrTime;
+	int nSysUsrId;
+	unsigned char logSendFlag;
+	unsigned char logRecvFlag;
+	unsigned char loglevel;
 };
 
 struct KxDevCtrlOpenLock_OrMsg
@@ -280,7 +293,7 @@ struct KxDevFileRecvOK_Msg
 	unsigned char tmHour;
 	unsigned char tmMin;
 	unsigned char tmSec;
-	
+
 	unsigned char devtype;
 	unsigned char recvFlag;
 	unsigned char FileType;
@@ -327,6 +340,13 @@ struct KxDevCtrlFileDeliverFileData_Base
 	unsigned char fileData[3];
 };
 
+struct KxDevCtrl_logData
+{
+	unsigned int nSessionId;
+	unsigned char logSendFlag;
+	unsigned char logRecvFlag;
+	unsigned char loglevel;
+};
 
 struct KxDevRegRespPacketBody
 {

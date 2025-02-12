@@ -40,7 +40,8 @@ private:
 	void AppCtrlDevGuardMsgCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic& msgPacket);
 	void AppCtrlDevElecLockCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic& msgPacket);
 	void AppCtrlDevFileDeliverCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic &msgPacket);
-	void AppCtrlDevLogSocketDataCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic &msgPacket);
+	void AppCtrlSvrLogSocketDataCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic &msgPacket);
+	void AppCtrlDevLogDataCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic &msgPacket);
 
 	void WebSvrRegMsgCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic& msgPacket);
 	void WebSvrHeartBeatMsgCallBack(std::shared_ptr<KxDevSession>, const KxMsgPacket_Basic& msgPacket);
