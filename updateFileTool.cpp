@@ -28,25 +28,28 @@ void Kx_MD5(unsigned char *szbuf, int nbufLen, unsigned char *md5_digest,
 
 int main(int argc, char *argv[])
 {
-    if (argc != 4)
+    if (argc != 5)
     {
-        std::cerr << "Usage: " << argv[0] << " <filePathName> <filetype> <devid>" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <filePathName> <filename> <filetype> <devid>" << std::endl;
         return 1;
     }
     std::string strfileURL = argv[1];
-    int nLasPos = strfileURL.find_last_of('/');
-    std::string strfileName;
-    int nFileType = std::atoi(argv[2]);
-    int nDevId = std::atoi(argv[3]);
-    if (nLasPos != -1)
-    {
-        strfileName = strfileURL.substr(nLasPos + 1);
-    }
-    else
-    {
-        std::cerr << "<filePathName> should have '/'" << std::endl;
-        return 2;
-    }
+    // int nLasPos = strfileURL.find_last_of('/');
+    // std::string strfileName;
+    // int nFileType = std::atoi(argv[2]);
+    // int nDevId = std::atoi(argv[3]);
+    // if (nLasPos != -1)
+    // {
+    //     strfileName = strfileURL.substr(nLasPos + 1);
+    // }
+    // else
+    // {
+    //     std::cerr << "<filePathName> should have '/'" << std::endl;
+    //     return 2;
+    // }
+    std::string strfileName = argv[2];
+    int nFileType = std::atoi(argv[3]);
+    int nDevId = std::atoi(argv[4]);
 
     unsigned int nFileSize(0);
     std::string strFileData;

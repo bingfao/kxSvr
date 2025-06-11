@@ -482,7 +482,7 @@ int main(int argc, const char **argv)
         return 1;
     }
 
-    const int nClientCount = 2;
+    const int nClientCount = 500;
     std::vector<std::thread> vec_thread;
     std::vector<SOCKET> vec_Sock;
     SOCKET sock;

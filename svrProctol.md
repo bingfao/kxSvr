@@ -307,6 +307,36 @@ HttpResponse采用json形式返回
   - errMsg
 
 
+## 设备位置信息查询
+/devPosInfo
+
+httpRequest
+  - type          //type不参与计算hash
+    - 1 wx小程序
+    - 2 独立App   
+  - usrId
+  - devId
+  - devType
+  - timestamp
+  - hash
+
+HttpResponse采用json形式返回
+  -devPosInfo
+    - cur_lngPos   8Byte   lng位置  float8
+    - cur_latPos   8Byte   lat位置  float8   
+    - sttime
+    - bdriving
+    以下字段仅在 bdriving 为1 时存在
+    - st_lngPos    8Byte   lng位置  float8  
+    - st_latPos    8Byte   lat位置  float8  
+    - Points    不包含起始和当前位置的位置点数据
+        - lngPos    lng位置  double  8Byte
+        - latPos    lat位置  double  8Byte
+    - speed
+  - errCode
+  - errMsg
+
+
 ## 设备事件历史查询
 /getDevEvent
 

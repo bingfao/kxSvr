@@ -112,11 +112,19 @@ int main(int argc, char *argv[])
         KxDevStatusPacketBody_Base *pDevStatus = &tbody;
         pDevStatus->nDevType = 1;
         pDevStatus->nProtocolFlag = 1;
-        pDevStatus->lngPos = 121.54409;
-        pDevStatus->latPos = 31.22114;
+        pDevStatus->lngPos = 121.62376850278972;
+        pDevStatus->latPos = 31.210368115448293;
         pDevStatus->mileage = 36 * c.getDevId();
-        // pDevStatus->bDriving = 1;
-        // pDevStatus->speed = 4.8*nDevId;
+        if (str_input == "2")
+        {
+          pDevStatus->bDriving = 0;
+          pDevStatus->speed = 0;
+        }
+        else
+        {
+          pDevStatus->bDriving = 1;
+          pDevStatus->speed = 4.8 * nDevId;
+        }
         pDevStatus->bMiniBatExist = true;
         strcpy_s(pDevStatus->szMiniBatteryId, "EEAD2002024991");
         pDevStatus->miniBatteryStatus.socPercent = 82;
@@ -234,7 +242,7 @@ int main(int argc, char *argv[])
         msg_b.nMsgBodyLen = sizeof(KxAppSvrCtrl_log_SocketData);
 
         auto msg = std::make_shared<KxMsgPacket_Basic>(msg_b, nHeaderExtra, (unsigned char *)&ctrl_msg, true);
-        
+
         msg->calculate_crc();
         c.write(msg);
       }
@@ -257,7 +265,7 @@ int main(int argc, char *argv[])
         msg_b.nMsgBodyLen = sizeof(KxAppSvrCtrl_log_SocketData);
 
         auto msg = std::make_shared<KxMsgPacket_Basic>(msg_b, nHeaderExtra, (unsigned char *)&ctrl_msg, true);
-        
+
         msg->calculate_crc();
         c.write(msg);
       }
@@ -281,7 +289,7 @@ int main(int argc, char *argv[])
         msg_b.nMsgBodyLen = sizeof(KxAppDevCtrl_logData);
 
         auto msg = std::make_shared<KxMsgPacket_Basic>(msg_b, nHeaderExtra, (unsigned char *)&ctrl_msg, true);
-        
+
         msg->calculate_crc();
         c.write(msg);
       }
@@ -305,7 +313,7 @@ int main(int argc, char *argv[])
         msg_b.nMsgBodyLen = sizeof(KxAppDevCtrl_logData);
 
         auto msg = std::make_shared<KxMsgPacket_Basic>(msg_b, nHeaderExtra, (unsigned char *)&ctrl_msg, true);
-        
+
         msg->calculate_crc();
         c.write(msg);
       }

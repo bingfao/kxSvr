@@ -392,9 +392,11 @@ void KxBusinessLogicMgr::DevStatusMsgCallBack(std::shared_ptr<KxDevSession> sess
 			strbMiniBatStatus = "'\\x" + ss.str() + "'";
 		}
 
-		strsql = std::format("Insert into devStatus (devId,devType,devpos,mileage,bdriving,speed,status,bminibatexist,minibatteryid,miniibatterystatus,batteryexist,chargeflag,batteryid,batstid,stTime) values ({:d},{:d},'{},{}',{},{},{},'\\x{:0>8x}{:0>4x}',{},{},{},{},{},'{}',{},localtimestamp({:d}) );",
-							 msgPacket.getDevId(),
-							 pDevStatus->nDevType, pDevStatus->lngPos, pDevStatus->latPos, pDevStatus->mileage, pDevStatus->bDriving, pDevStatus->speed,
+		strsql = std::format("Insert into devStatus (devId,devType,devpos,mileage,bdriving,speed\
+			,status,bminibatexist,minibatteryid,miniibatterystatus,batteryexist,chargeflag,batteryid,batstid,stTime)\
+			 values ({:d},{:d},'{},{}',{},{},{}\
+			 ,'\\x{:0>8x}{:0>4x}',{},{},{},{},{},'{}',{},localtimestamp({:d}) );",
+							 msgPacket.getDevId(),pDevStatus->nDevType, pDevStatus->lngPos, pDevStatus->latPos, pDevStatus->mileage, pDevStatus->bDriving, pDevStatus->speed,
 							 *pStatusLow, *pStatusHigh, pDevStatus->bMiniBatExist, strbMiniBatId, strbMiniBatStatus, pDevStatus->batteryExist, pDevStatus->chargeFlag, pDevStatus->szBatteryId, batstid, t_c);
 		// KX_LOG_FUNC_(strsql);
 		// std::cout << "sql is: " << strsql << std::endl;

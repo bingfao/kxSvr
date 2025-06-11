@@ -220,7 +220,7 @@ void KxDevSession::getDevAESKeyData()
 		std::string strsql;
 
 		strsql = std::format("select c.\"commAESKey\" from  vehicles as v left join controlerboardinfo as c on v.controllerid = c.id Where v.devid = {:d} and v.devtype = 1;", m_nDevId);
-		KX_LOG_FUNC_(strsql);
+		// KX_LOG_FUNC_(strsql);
 		// std::cout << "sql is: " << strsql << std::endl;
 		auto rdev = tx.exec(strsql);
 		if (rdev.size() > 0)
