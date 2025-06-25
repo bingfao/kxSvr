@@ -352,8 +352,8 @@ void KxBusinessLogicMgr::DevStatusMsgCallBack(std::shared_ptr<KxDevSession> sess
 			// }
 			char szBatteryid[sizeof(KxDevStatusPacketBody_Base::szBatteryId) + 1] = {0};
 			std::strncpy(szBatteryid, pDevStatus->szBatteryId, sizeof(KxDevStatusPacketBody_Base::szBatteryId));
-			strsql = std::format("Insert into batterystatus (batteryid,socpercent,voltage,temp,currentflag,current,seriescount,seriesdata,stTime) values ('{:s}',{:d},{:d},{:d},{:d},{:d},{:d},{:s},localtimestamp({:d})  ) RETURNING batstid;",
-								 szBatteryid, batteryStatus.socPercent, batteryStatus.voltage, batteryStatus.temp,
+			strsql = std::format("Insert into batterystatus (batteryid,socpercent,voltage,temp,chargecycle,soh,currentflag,current,seriescount,seriesdata,stTime) values ('{:s}',{:d},{:d},{:d},{:d},{:d},{:d},{:d},{:d},{:s},localtimestamp({:d})  ) RETURNING batstid;",
+								 szBatteryid, batteryStatus.socPercent, batteryStatus.voltage, batteryStatus.temp,batteryStatus.chargeCycle,batteryStatus.soH,
 								 batteryStatus.currentFlag, batteryStatus.current, pDevStatus->seriesCount, strSeriesData, t_c);
 			// std::cout << "sql is: " << strsql << std::endl;
 			// KX_LOG_FUNC_(strsql);

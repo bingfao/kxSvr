@@ -128,6 +128,8 @@ struct KxDev_BatteryStatus_
 	unsigned char socPercent;
 	unsigned short voltage;
 	unsigned short temp;
+	unsigned short chargeCycle;
+	unsigned char soH;
 	unsigned char currentFlag;
 	unsigned short current;
 };
