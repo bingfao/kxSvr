@@ -185,6 +185,7 @@ respcode为0时：
 
 设备每8h向Svr上报当月已使用流量数据
 
+
 ### 包体部分
 - DevType              1Byte   设备类型
 - ProtocolFlag         1Byte   应对后续协议升级用的标识
@@ -195,6 +196,32 @@ respcode为0时：
 - RespCode
     - 0   Ok
     - 1   拒绝
+
+
+
+## 设备查询电池续航能力
+- MsgId  1005
+- CryptFlag 0
+
+设备向Svr查询电池的当前续航能力
+因不同电池不同阶段SOC值对应的续航里程会变化，故设备在电池新插入后、充电完成、或者每日定时向Svr查询
+设备在仪表上显示的可续航里程，可基于从svr获取的值来做计算预估，（根据上次获取的可续航里程，按当前soc-socMinVal平均计算）
+
+
+### 包体部分
+- DevType              1Byte           设备类型
+- batteryId            32Byte          动力电池编号 string
+- socPercent           1Byte           u8   0~100   
+- voltage              2Byte           u16  电压值*100
+
+### 应答包
+- RespCode
+    - 0   Ok
+    - 1   发生错误
+- maxRange             4Byte    U32  以m为单位
+- chargeNotifySoc      1Byte    u8   0~100
+- socMinVal            1Byte    u8   0~100， 已无法驱动车辆的soc下限值，此值仅用作预估计算用，设备不根据此值来判断是否停止驱动行驶  
+
 
 
 ## 车辆行程  
