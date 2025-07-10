@@ -251,7 +251,9 @@ respcode为0时：
         - second       1Byte   //以上数据在数据库中存为8字节 timestamp
     - end_lngPos    8Byte   lng位置  float8 
     - end_latPos    8Byte   lat位置  float8  8Byte  
-    - ltinerary     4Byte    行程(以10m计)
+    - ltinerary     4Byte    行程      U32 以m计
+    - socBegin      1Byte    开始时的SOC
+    - socEnd        1Byte    结束时的SOC
     - maxSpeed      2Byte    最高速度   整数 mm/s 
     - aveSpeed      2Byte    平均速度   整数 mm/s 
     - maxCurrent    2Byte    最大供电电流     u16  电流值*100
