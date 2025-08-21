@@ -348,8 +348,8 @@ respcode为0时：
         - eventData 
             - usrId   4Byte    //未有用户开锁状态下，全填0
             - speed     行驶速度  U16    速度 整数 mm/s
-    - lngPos    lng位置  float8  8Byte
-    - latPos    lat位置  float8  8Byte  
+        - lngPos    lng位置  float8  8Byte
+        - latPos    lat位置  float8  8Byte  
 - nDataLen  4Byte    //原始数据的长度
 - crc16     2Byte    //原始数据的crc16
 
