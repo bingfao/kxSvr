@@ -273,6 +273,9 @@ respcode为0时：
     - 1   拒绝
 
 
+
+
+
 ## 车辆充电完成  
 在每次充电结束时，车辆发送该报文到svr，为过滤因充电器接触不良，每次充电时长需大于30min，以30min内soc不再增长作为结束或者以电池反馈已充电完成作为结束
 - MsgId  1010
@@ -329,15 +332,24 @@ respcode为0时：
             - second       1Byte   //以上数据在数据库中存为8字节 timestamp
             - microsecond  2Byte   //另外字段存储，便于查找比较
         - eventType        1Byte
-            - 1      用户使用Key开锁
-            - 2      网络开锁
+            - 1      用户手机蓝牙靠近自动开锁
+            - 2      用户网络开锁
             - 3      自动锁车
-            - 4      用户锁车
+            - 4      用户网络锁车
             - 5      在车充电
             - 6      车辆电池被取出
             - 7      车辆电池被放入
             - 8      车辆倾倒
             - 9      车辆未解锁被移动
+            - 10     车辆骑行过程中倾倒
+            - 11     用户使用车辆钥匙开锁
+            - 12     用户使用车辆钥匙锁车
+            - 13     用户开始骑行
+        - eventData 
+            - usrId   4Byte    //未有用户开锁状态下，全填0
+            - speed     行驶速度  U16    速度 整数 mm/s
+    - lngPos    lng位置  float8  8Byte
+    - latPos    lat位置  float8  8Byte  
 - nDataLen  4Byte    //原始数据的长度
 - crc16     2Byte    //原始数据的crc16
 
@@ -420,6 +432,7 @@ respcode为0时：
 - 加密部分报文
     - svrtime         8Byte timestamp  localtime 
     - devSessionId    4Byte
+    - usrId           4Byte  开锁用户id
     - allowTime       2Byte  允许使用的时长， 以min计
     - lowestSocP      1Byte  允许使用到的最低电量  0~100
     - farthestDist    4Byte  允许的最远距离，以m计
