@@ -128,7 +128,7 @@ respcode为0时：
 - bDriving  行驶状态  bool   1Byte
 - speed     行驶速度  U16    速度 整数 mm/s
 - status    工作状态  6Byte
-    - lockStuats    1Byte  bit0 电气锁  bit1 座桶锁 bit2 手套箱锁 bit3 头盔锁 bit4 电驱锁  bit取值1 为锁打开
+    - lockStuats    1Byte  bit0 电气锁  bit1 座桶锁 bit2 手套箱锁 bit3 头盔锁 bit4 电驱锁 bit5 头盔锁2  bit取值1 为锁打开
     - lightStatus   2Byte  灯光状态
         - bit0~1     照明大灯    0b01 开启 0b00 关闭  0b11 故障
         - bit2~3     照明远光灯  0b01 开启 0b00 关闭  0b11 故障
@@ -318,6 +318,10 @@ respcode为0时：
 ## 设备事件上报
 - MsgId  1012
 - CryptFlag 1
+
+**当发生骑行过程中车辆倾倒等安全事件时，设备应立即将该事件单独上报，仅在网络原因上报失败情况下，写入设备事件记录表，再定时检查上报**
+一般事件先写入设备事件记录表，定时检查上报
+
 ### 包体部分
 **注意：包体部分是AES之后的数据，需解密后处理**
 - 加密部分报文
@@ -672,6 +676,29 @@ respcode为0时：
     - 0   Ok
     - 1   拒绝
 
+
+## 车主配对数据下发
+
+车辆在车主首次配对时服务器下发用于SPAKE2+流程的数据
+- MsgId  2035
+- CryptFlag 1
+
+### 包体部分 
+
+**注意：包体部分是AES之后的数据，设备端需解密后验证时间和SessionId后处理**
+- 加密部分报文
+    - svrtime         8Byte timestamp  localtime 
+    - devSessionId    4Byte
+    - salt            16Byte
+    - w0              32Byte  
+    - L               64Byte  
+- nDataLen  4Byte    //原始数据的长度
+- crc16     2Byte    //原始数据的crc16
+
+### 应答包
+- RespCode
+    - 0   Ok
+    - 1   拒绝
 
 ## 设置dev日志记录level
 

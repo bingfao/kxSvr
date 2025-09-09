@@ -7,6 +7,28 @@ wx小程序通过https，调用webSvr接口，查看dev的状态、事件等信�
 
 # wxApp  <--->  WebSvr
 
+## 门店工作人员登录
+
+主要完成哪些事项？：
+  - 门店营销活动设定
+  - 车辆出售
+  - 激活车辆eSIM的联网服务
+  - 车辆门店模式
+  - 车辆试驾
+  - 车辆检修
+
+## 工作人员登录
+主要完成哪些事项？：
+  - 创建门店及门店用户
+  - 营销活动设定
+  - 激活车辆eSIM的联网服务
+  - 车辆模式设定
+  - 车辆试驾
+  - 车辆检修
+  - 车辆出厂登记
+  - 用户骑行过程事故处理   //这里还没有想好具体的流程逻辑部分
+
+
 ## 用户登录
 /usrLogin
 
@@ -124,9 +146,11 @@ HttpResponse采用json形式返回
 
 
 
-## 绑定车辆
+## 车主绑定车辆
 /bindDevWithUsr
    
+*仅车辆处于待车主绑定状态下可绑定* 
+
 httpRequest
   - type          //type不参与计算hash
     - 1 wx小程序
@@ -139,15 +163,19 @@ httpRequest
 
 HttpResponse采用json形式返回
   成功时
-    - errCode 0
+    - errCode        0
+    - psw            8位ASCII
+    - vehicleOEM     string 厂商
   失败时
   - errCode
   - errMsg
 
 
-## 解绑车辆
+## 车主解绑车辆
 /unbindDev
 
+*车主解绑车辆后，则基于车主共享的其他钥匙也均被取消，车辆重新进入待车主绑定状态*
+
 httpRequest
   - type          //type不参与计算hash
     - 1 wx小程序
@@ -164,9 +192,12 @@ HttpResponse采用json形式返回
   失败时
   - errCode
   - errMsg
+
 
 ## 共享车辆给家人
 /shareDevWithFamily
+
+*仅车主可以共享车辆给家人*
 
 httpRequest
   - type          //type不参与计算hash
